@@ -1,0 +1,65 @@
+body {
+  background: #f7f9fa;
+}
+.app-header {
+  margin-top: 30px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.sidebar-card {
+  min-height: 600px;
+  margin-top: 30px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(44,62,80,0.06);
+}
+.main-card {
+  margin-top: 30px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(44,62,80,0.08);
+}
+.selectize-input, .form-control, .radio label {
+  font-size: 1.05em;
+}
+
+/* Force navbar title and tabs to stack vertically at all widths */
+.navbar .container-fluid,
+.navbar .container-xl,
+.navbar .container-lg,
+.navbar .container-md,
+.navbar .container-sm {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+/* Override Bootstrap's media queries for navbar-nav */
+@media (min-width: 576px) {
+  .navbar-expand-sm .navbar-nav {
+    flex-direction: column !important;
+    width: 100%;
+  }
+}
+@media (min-width: 768px) {
+  .navbar-expand-md .navbar-nav {
+    flex-direction: column !important;
+    width: 100%;
+  }
+}
+@media (min-width: 992px) {
+  .navbar-expand-lg .navbar-nav {
+    flex-direction: column !important;
+    width: 100%;
+  }
+}
+@media (min-width: 1200px) {
+  .navbar-expand-xl .navbar-nav {
+    flex-direction: column !important;
+    width: 100%;
+  }
+}
+
+.container-fluid {
+      flex-direction: column !important; /* Using !important can help ensure it overrides, but use with caution */
+    }
