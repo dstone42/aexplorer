@@ -13,14 +13,11 @@ source("modules/chord_diagram.R")
 
 # ---- CACHE DATA HERE ----
 cached_data <- fread("data/data.csv", sep = "$")
-drug_class_stats <- fread("data/drug_class_stats.csv")
+drug_category_stats <- fread("data/drug_category_stats.csv")
 cancer_type_stats <- fread("data/cancer_type_stats.csv")
 # chord_table <- makeFreqTable(cached_data, "AE_Category_Expanded")  # Create frequency table for Chord plot
-chord_table <- fread("data/AE_Category_freq_table.csv")
-row_names <- chord_table[[1]]
-chord_table[[1]] <- NULL
-chord_table <- as.matrix(chord_table)
-rownames(chord_table) <- row_names
+AE_Category_freq_table <- fread("data/AE_Category_freq_table.csv")
+AE_Category_freq_table <- formatChordTable(AE_Category_freq_table)  # Format the frequency table
 # -------------------------
 
 # Define the server logic
@@ -28,9 +25,9 @@ server <- function(input, output, session) {
   
   # Reactive value to store the loaded data
   data <- reactiveVal(cached_data)
-  drug_class_stats_data <- reactiveVal(drug_class_stats)
+  drug_category_stats_data <- reactiveVal(drug_category_stats)
   cancer_type_stats_data <- reactiveVal(cancer_type_stats)
-  chord_data <- reactiveVal(chord_table)
+  chord_data <- reactiveVal(NULL)
 
   # Read palettes
   ae_category_palette <- fromJSON("www/palettes/ae_categories.json")
@@ -131,9 +128,9 @@ server <- function(input, output, session) {
 
       # Dynamically select the data source for the Volcano plot based on input$volcanoTarget
       req(input$volcanoTarget)
-      if (input$volcanoTarget == "drug_class") {
-        data_source <- drug_class_stats_data
-      } else if (input$volcanoTarget == "cancerType") {
+      if (input$volcanoTarget == "drug_category") {
+        data_source <- drug_category_stats_data
+      } else if (input$volcanoTarget == "cancer_type") {
         data_source <- cancer_type_stats_data
       }
       
@@ -149,6 +146,14 @@ server <- function(input, output, session) {
       )
     } else if (input$plotType == "Chord") {
       # Chord Diagram
+
+      # Dynamically select the data source for the Chord plot based on input$chordColumn
+      req(input$chordColumn)
+      if (input$chordColumn == "AECategory") {
+        chord_data(AE_Category_freq_table)  # Use the precomputed frequency table for AE Category
+      } else {
+        chord_data(NULL)  # Handle other cases or set to NULL if no data available
+      }
       tagList(
         chordNetworkOutput("chordPlot", height = "1100px"),  # Use chordNetworkOutput for Chord plot
         # Caption
@@ -175,13 +180,17 @@ server <- function(input, output, session) {
   # Render Chord Plot
   output$chordPlot <- renderchordNetwork({
     req(chord_data())
+    palette <- NULL
+    if (input$chordColumn == "AECategory") {
+      palette <- ae_category_palette
+    }
     # You may need to preprocess filteredData() to get a data.table with source, target, value columns
     renderChordPlot(
       data = chord_data(),  # your processed data.table
       source_col = "source",
       target_col = "target",
       value_col = "value",
-      group_colors = ae_category_palette  # or another palette
+      group_colors = palette  # or another palette
     )
   })
 

@@ -114,8 +114,18 @@ ui <- navbarPage(
               selectizeInput(
                 "volcanoTarget",
                 "Select Target Column",
-                choices = c("drug_class", "cancerType"),
-                selected = "drug_class"
+                choices = c("drug_category", "cancer_type"),
+                selected = "drug_category"
+              )
+            ),
+            # Chord plot options
+            conditionalPanel(
+              condition = "input.plotType == 'Chord'",
+              selectizeInput(
+                "chordColumn",
+                "Select Column for Chord Diagram",
+                choices = c("AECategory"),
+                selected = "AECategory"
               )
             )
           )

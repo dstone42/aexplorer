@@ -15,7 +15,7 @@ volcanoPlotUI <- function(id) {
 #' @param data Reactive data frame with required columns
 #' @param target_col Name of the column for target/group (string)
 #' @param plot_title Title for the plot (string)
-volcanoPlotServer <- function(id, data, target_col = "drug_class", plot_title = "Volcano Plot") {
+volcanoPlotServer <- function(id, data, target_col, plot_title = "Volcano Plot") {
   moduleServer(id, function(input, output, session) {
     output$volcanoPlot <- renderPlot({
       df <- data()
@@ -46,7 +46,7 @@ volcanoPlotServer <- function(id, data, target_col = "drug_class", plot_title = 
         y = `-log10(adjusted p-value)`,
         color = colorColumn,
         size = `Number of Cases`,
-        label = ifelse(colorColumn != "Insignificant", paste0(df[[target_col]], " &\n", df$irAE), "")
+        label = ifelse(colorColumn != "Insignificant", paste0(df[[target_col]], " &\n", df$AE), "")
       )) +
         geom_point(alpha = 0.5) +
         scale_color_manual(values = mycolors) +

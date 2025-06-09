@@ -12,11 +12,25 @@ renderChordPlot <- function(data, source_col, target_col, value_col, group_color
   wrapped_labels <- unname(sapply(labels, wrap_label, width = 30))
   rownames(data) <- wrapped_labels
   colnames(data) <- wrapped_labels
-  # browser()
-  print(wrapped_labels)
-  print(anyDuplicated(wrapped_labels))  # Should be 0
-  print(dim(data))
-  print(identical(rownames(data), colnames(data)))  
+
+  # Prepare group colors if provided
+  group_color_vec <- NULL
+  if (!is.null(group_colors)) {
+    # Match colors to the wrapped labels
+    # Remove HTML breaks for matching
+    clean_labels <- gsub("<br>", " ", wrapped_labels)
+    # Try to match by original names (before wrapping)
+    color_names <- names(group_colors)
+    # If wrapped labels match color_names, use them directly
+    if (all(clean_labels %in% color_names)) {
+      group_color_vec <- unname(group_colors[clean_labels])
+    } else if (all(labels %in% color_names)) {
+      group_color_vec <- unname(group_colors[labels])
+    } else {
+      # fallback: repeat a default color
+      group_color_vec <- rep("#D3D3D3", length(wrapped_labels))
+    }
+  }
 
   w <- chordNetwork(
     Data = data,
@@ -25,7 +39,8 @@ renderChordPlot <- function(data, source_col, target_col, value_col, group_color
     labels = wrapped_labels,
     labelDistance = 140,
     padding = 0.09,
-    fontSize = 13
+    fontSize = 13,
+    colourScale = group_color_vec
   )
   # str(w$x$options)
   w
@@ -46,5 +61,13 @@ makeFreqTable <- function(df, subset_column) {
       }
     }
   }
+  return(freq_table)
+}
+
+formatChordTable <- function(freq_table) {
+  row_names <- freq_table[[1]]
+  freq_table[[1]] <- NULL
+  freq_table <- as.matrix(freq_table)
+  rownames(freq_table) <- row_names
   return(freq_table)
 }

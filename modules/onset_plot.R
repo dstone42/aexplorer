@@ -5,6 +5,7 @@ renderOnsetPlot <- function(data, input, output, session) {
   plot_data <- data[!is.na(time_to_onset)]
   
   if (input$facetVarRow != "None" || input$facetVarCol != "None") {
+    # browser()
     # Filter and order data based on selected facets
     if (!is.null(input$facetVarRow) && input$facetVarRow != "None") {
       plot_data <- plot_data[!is.na(get(input$facetVarRow)) & get(input$facetVarRow) != ""]
@@ -47,7 +48,7 @@ renderOnsetPlot <- function(data, input, output, session) {
         axis.text.x = element_text(size = 14),
         legend.position = "none"
       )
-
+    # browser()
     # Apply palettes
     if (input$facetVarRow == "AE_Category") {
       plot <- plot + scale_fill_manual(values = ae_category_palette) +
@@ -55,13 +56,19 @@ renderOnsetPlot <- function(data, input, output, session) {
     } else if (input$facetVarRow == "outc_cod" || input$facetVarCol == "outc_cod") {
       plot <- plot + scale_fill_manual(values = outcomes_palette) +
                     scale_color_manual(values = alpha(outcomes_palette, 1))
+    } else if (input$facetVarRow == "drug_category") {
+      plot <- plot + scale_fill_manual(values = drug_category_palette) +
+                    scale_color_manual(values = alpha(drug_category_palette, 1))
     } else if (input$facetVarCol == "AE_Category") {
       plot <- plot + scale_fill_manual(values = ae_category_palette) +
                     scale_color_manual(values = alpha(ae_category_palette, 1))
-    } else if (input$facetVarRow == "outc_cod" || input$facetVarCol == "outc_cod") {
+    } else if (input$facetVarCol == "outc_cod" || input$facetVarCol == "outc_cod") {
       plot <- plot + scale_fill_manual(values = outcomes_palette) +
                     scale_color_manual(values = alpha(outcomes_palette, 1))
-    }
+    } else if (input$facetVarCol == "drug_category") {
+      plot <- plot + scale_fill_manual(values = drug_category_palette) +
+                    scale_color_manual(values = alpha(drug_category_palette, 1))
+    } 
 
     # Prepare row and column facets
     row_facet <- if (input$facetVarRow != "None") vars(factor(get(input$facetVarRow), levels = order_of_medians_row)) else NULL
