@@ -4,6 +4,7 @@ library(promises)
 library(data.table)
 library(ggplot2)
 library(jsonlite)
+library(systemfonts)
 
 # Source visualization modules
 source("modules/onset_plot.R")
@@ -83,7 +84,7 @@ server <- function(input, output, session) {
       return(total_height)
     } else {
       num_facets <- 1  # Default to 1 if no faceting
-      return(200)  # Default height for non-faceted plots
+      return(250)  # Default height for non-faceted plots
     }
   })
 

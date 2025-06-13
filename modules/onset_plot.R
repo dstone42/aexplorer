@@ -5,7 +5,6 @@ renderOnsetPlot <- function(data, input, output, session) {
   plot_data <- data[!is.na(time_to_onset)]
   
   if (input$facetVarRow != "None" || input$facetVarCol != "None") {
-    # browser()
     # Filter and order data based on selected facets
     if (!is.null(input$facetVarRow) && input$facetVarRow != "None") {
       plot_data <- plot_data[!is.na(get(input$facetVarRow)) & get(input$facetVarRow) != ""]
@@ -26,11 +25,6 @@ renderOnsetPlot <- function(data, input, output, session) {
     } else {
       medians_col <- NULL
     }
-
-    # medians <- plot_data[, .(median_time = median(time_to_onset, na.rm = TRUE)), by = eval(input$facetVarRow)]
-    # order_of_medians <- medians[order(medians$median_time)][[input$facetVarRow]]
-    # plot_data[[input$facetVarRow]] <- factor(plot_data[[input$facetVarRow]], levels = order_of_medians)
-    # medians[[input$facetVarRow]] <- factor(medians[[input$facetVarRow]], levels = order_of_medians)
     
     plot <- ggplot(plot_data, aes(x = time_to_onset)) +
       geom_density(aes(fill = if (input$facetVarRow != "None") get(input$facetVarRow) else get(input$facetVarCol), 
@@ -39,16 +33,17 @@ renderOnsetPlot <- function(data, input, output, session) {
       labs(title = "Onset of Adverse Events", x = "Time to Onset (Weeks)") +
       theme_minimal() +
       theme(
-        title = element_text(size = 16),
+        title = element_text(size = 16, family = "DejaVu Sans"),
         panel.grid = element_blank(),
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
-        axis.title.x = element_text(size = 16),
+        axis.title.x = element_text(size = 16, family = "DejaVu Sans"),
         axis.title.y = element_blank(),
         axis.text.x = element_text(size = 14),
-        legend.position = "none"
+        legend.position = "none",
+        plot.margin = margin(t = 20, r = 20, b = 50, l = 20)
       )
-    # browser()
+
     # Apply palettes
     if (input$facetVarRow == "AE_Category") {
       plot <- plot + scale_fill_manual(values = ae_category_palette) +
@@ -168,14 +163,15 @@ renderOnsetPlot <- function(data, input, output, session) {
       labs(title = "Onset of Adverse Events", x = "Time to Onset (Weeks)") +
       theme_minimal() +
       theme(
-        title = element_text(size = 16),
+        title = element_text(size = 16, family = "DejaVu Sans"),
         panel.grid = element_blank(),
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
-        axis.title.x = element_text(size = 16),
+        axis.title.x = element_text(size = 16, family = "DejaVu Sans"),
         axis.title.y = element_blank(),
         axis.text.x = element_text(size = 14),
-        legend.position = "none"
+        legend.position = "none",
+        plot.margin = margin(t = 20, r = 20, b = 50, l = 20)
       )
 
     # Apply palettes

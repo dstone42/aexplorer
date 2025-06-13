@@ -27,7 +27,7 @@ ui <- navbarPage(
     tags$link(rel = "stylesheet", href = "custom.css")  # Add your custom CSS here
   ),
   tabPanel(
-    title = "Visualizations",
+    title = "Data Exploration",
     fluidPage(
       # Custom script to make chord labels wrap correctly
       tags$script(HTML("
@@ -48,7 +48,7 @@ ui <- navbarPage(
                 }
               }
             });
-          }, 200); // Wait for rendering
+          }, 300); // Wait for rendering
         });
       ")),
       fluidRow(
