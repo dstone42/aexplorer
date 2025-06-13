@@ -23,6 +23,8 @@ AE_Category_freq_table <- formatChordTable(AE_Category_freq_table)  # Format the
 
 # Define the server logic
 server <- function(input, output, session) {
+
+  # --- Data Loading and Preprocessing ---
   
   # Reactive value to store the loaded data
   data <- reactiveVal(cached_data)
@@ -40,41 +42,39 @@ server <- function(input, output, session) {
   assign("outcomes_palette", outcomes_palette, envir = .GlobalEnv)
   assign("drug_category_palette", drug_category_palette, envir = .GlobalEnv)
 
-  # Initialize tooltips
-  addTooltip(session, id = "infoIcon", title = "For the onset plot, values greater than 52 weeks are grouped into '>52'.", placement = "left", trigger = "hover")
+  # --- Plot Rendering Logic ---
 
-  # The selected order I chose in the UI section was never preserved when the figure rendered, so I am setting the selected here
-  updateSelectizeInput(session, "sankeyColumns", selected = c("drug_category", "outc_cod"))  # Default selected columns for Sankey plot
+  # --- Onset Plot ---
 
-  # Observe the subsetData input and update the filterColumn choices accordingly
+  # Observe the onsetSubsetData input and update the onsetFilterColumn choices accordingly
   observe({
-    choices <- names(data())  # Get column names for the filterColumn dropdown
+    choices <- names(data())  # Get column names for the onsetFilterColumn dropdown
     # Remove primaryid, event_dt, and time_to_onset from choices
     choices <- choices[!choices %in% c("primaryid", "event_dt", "time_to_onset")]
-    updateSelectInput(session, "filterColumn", choices = choices)  # Populate filterColumn dropdown
+    updateSelectInput(session, "onsetFilterColumn", choices = choices)  # Populate onsetFilterColumn dropdown
     
   })
 
-  # Observe the filterColumn input and update the filterValues choices accordingly
+  # Observe the onsetFilterColumn input and update the onsetFilterValues choices accordingly
   observe({
-    updateSelectizeInput(session, "filterValues", choices = unique(data()[[input$filterColumn]]), server = TRUE)  # Populate filterValues dropdown
+    updateSelectizeInput(session, "onsetFilterValues", choices = unique(data()[[input$onsetFilterColumn]]), server = TRUE)  # Populate onsetFilterValues dropdown
   })
 
   # Filter data based on user input
-  filteredData <- reactive({
+  onsetFilteredData <- reactive({
     req(data())
-    if (input$subsetData == "Yes" && !is.null(input$filterColumn) && !is.null(input$filterValues)) {
-      data()[data()[[input$filterColumn]] %in% input$filterValues, ]
+    if (input$onsetSubsetData == "Yes" && !is.null(input$onsetFilterColumn) && !is.null(input$onsetFilterValues)) {
+      data()[data()[[input$onsetFilterColumn]] %in% input$onsetFilterValues, ]
     } else {
       data()
     }
   })
-  
+
   # Dynamically calculate plot height based on the number of facets
-  plotHeight <- reactive({
-    req(filteredData())
+  onsetPlotHeight <- reactive({
+    req(onsetFilteredData())
     if (input$facetVarRow != "None") {
-      num_facets <- length(unique(filteredData()[[input$facetVarRow]]))
+      num_facets <- length(unique(onsetFilteredData()[[input$facetVarRow]]))
       min_height <- 300  # Minimum height for the plot
       facet_height <- 50  # Height per facet
       max_height <- 1200  # Maximum height for the plot
@@ -88,35 +88,67 @@ server <- function(input, output, session) {
     }
   })
 
-  # Make plot container scrollable for all plots except Chord
-  output$plot_container <- renderUI({
-    if (input$plotType == "Chord") {
-      withSpinner(uiOutput("plot"))  # No scrollable div
-    } else {
-      div(
-        style = "overflow-y: auto; max-height: 1200px;",
-        withSpinner(uiOutput("plot"))
-      )
-    }
+  output$onset_plot_container <- renderUI({
+    div(
+      style = "overflow-y: auto; max-height: 1200px;",
+      withSpinner(uiOutput("onset_plot_with_caption"))
+    )
   })
 
-  # Add plot output based on selected plot type
-  output$plot <- renderUI({
-    req(filteredData())  # Ensure data is loaded before rendering
-
-    if (input$plotType == "Onset") {
-      # Onset Plot
-      tagList(
-        plotOutput("onsetPlot", height = plotHeight()),  # Use plotOutput for ggplot
+  output$onset_plot_with_caption <- renderUI({
+    tagList(
+        plotOutput("onsetPlot", height = onsetPlotHeight()),  # Use plotOutput for ggplot
         # Caption
         tags$p(
           style = "font-style: italic; font-size: 12px; color: #555; margin-top: 8px;",
           "Time to onset (in weeks) from drug administration to adverse events. Values greater than 52 weeks are grouped into '>52'."
         )
       )
-    } else if (input$plotType == "Sankey") {
-      # Sankey Plot
-      tagList(
+  })
+
+  output$onsetPlot <- renderPlot({
+    req(onsetFilteredData())
+    renderOnsetPlot(onsetFilteredData(), input, output, session)
+  })
+
+  # --- Sankey Plot ---
+
+  # Observe the sankeySubsetData input and update the sankeyFilterColumn choices accordingly
+  observe({
+    choices <- names(data())  # Get column names for the sankeyFilterColumn dropdown
+    # Remove primaryid, event_dt, and time_to_onset from choices
+    choices <- choices[!choices %in% c("primaryid", "event_dt", "time_to_onset")]
+    updateSelectInput(session, "sankeyFilterColumn", choices = choices)  # Populate sankeyFilterColumn dropdown
+    
+  })
+
+  # Observe the sankeyFilterColumn input and update the sankeyFilterValues choices accordingly
+  observe({
+    updateSelectizeInput(session, "sankeyFilterValues", choices = unique(data()[[input$sankeyFilterColumn]]), server = TRUE)  # Populate sankeyFilterValues dropdown
+  })
+
+  # Filter data based on user input
+  sankeyFilteredData <- reactive({
+    req(data())
+    if (input$sankeySubsetData == "Yes" && !is.null(input$sankeyFilterColumn) && !is.null(input$sankeyFilterValues)) {
+      data()[data()[[input$sankeyFilterColumn]] %in% input$sankeyFilterValues, ]
+    } else {
+      data()
+    }
+  })
+
+  # The selected order I chose in the UI section was never preserved when the figure rendered, so I am setting the selected here
+  updateSelectizeInput(session, "sankeyColumns", selected = c("drug_category", "outc_cod"))  # Default selected columns for Sankey plot
+
+  output$sankey_plot_container <- renderUI({
+    div(
+      style = "overflow-y: auto; max-height: 1200px;",
+      withSpinner(uiOutput("sankey_plot_with_caption"))
+    )
+  })
+
+  output$sankey_plot_with_caption <- renderUI({
+    tagList(
         sankeyNetworkOutput("sankeyPlot"),  # Use sankeyNetworkOutput for Sankey plot
         # Caption
         tags$p(
@@ -124,10 +156,24 @@ server <- function(input, output, session) {
           "Proportions of adverse event cases across selected columns."
         )
       )
-    } else if (input$plotType == "Volcano") {
-      # Volcano Plot
+  })
 
-      # Dynamically select the data source for the Volcano plot based on input$volcanoTarget
+  output$sankeyPlot <- renderSankeyNetwork({
+    req(sankeyFilteredData())
+    renderSankeyPlot(sankeyFilteredData(), input, output, session)
+  })
+
+  # --- Volcano Plot ---
+
+  output$volcano_plot_container <- renderUI({
+    div(
+      style = "overflow-y: auto; max-height: 1200px;",
+      withSpinner(uiOutput("volcano_plot_with_caption"))
+    )
+  })
+
+  output$volcano_plot_with_caption <- renderUI({
+    # Dynamically select the data source for the Volcano plot based on input$volcanoTarget
       req(input$volcanoTarget)
       if (input$volcanoTarget == "drug_category") {
         data_source <- drug_category_stats_data
@@ -145,10 +191,16 @@ server <- function(input, output, session) {
           Points on the top left indicate decreased risk for the AE in the context of the selected target."
         )
       )
-    } else if (input$plotType == "Chord") {
-      # Chord Diagram
+  })
 
-      # Dynamically select the data source for the Chord plot based on input$chordColumn
+  # --- Chord Diagram ---
+
+  output$chord_plot_container <- renderUI({
+    withSpinner(uiOutput("chord_plot_with_caption"))  # No scrollable div
+  })
+
+  output$chord_plot_with_caption <- renderUI({
+    # Dynamically select the data source for the Chord plot based on input$chordColumn
       req(input$chordColumn)
       if (input$chordColumn == "AECategory") {
         chord_data(AE_Category_freq_table)  # Use the precomputed frequency table for AE Category
@@ -163,22 +215,8 @@ server <- function(input, output, session) {
           "Shows the frequency of co-occurrence for selected column."
         )
       )
-    }
   })
 
-  # Render Onset Plot
-  output$onsetPlot <- renderPlot({
-    req(filteredData())
-    renderOnsetPlot(filteredData(), input, output, session)
-  })
-
-  # Render Sankey Plot
-  output$sankeyPlot <- renderSankeyNetwork({
-    req(filteredData())
-    renderSankeyPlot(filteredData(), input, output, session)
-  })
-
-  # Render Chord Plot
   output$chordPlot <- renderchordNetwork({
     req(chord_data())
     palette <- NULL

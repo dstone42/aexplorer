@@ -51,103 +51,152 @@ ui <- navbarPage(
           }, 300); // Wait for rendering
         });
       ")),
-      fluidRow(
-        column(
-          2,
-          div(
-            class = "sidebar-card shadow-sm rounded p-3 bg-white",
-            # Plot type selector
-            selectizeInput("plotType", "Select Plot Type", choices = c("Onset", "Sankey", "Volcano", "Chord")),
-            # Subset options
-            conditionalPanel(
-              condition = "input.plotType != 'Chord' && input.plotType != 'Volcano'",
-              radioButtons(
-                "subsetData",
-                "Subset Data?",
-                choices = c("No", "Yes"),
-                selected = "No"
-              ),
-              conditionalPanel(
-                condition = "input.subsetData == 'Yes'",
+      tabsetPanel(
+        id = "exploreTab",
+        # --- Onset Tab ---
+        tabPanel("Onset",
+          fluidRow(
+            column(
+              2,
+              div(
+                class = "sidebar-card shadow-sm rounded p-3 bg-white",
+                # Plot options
                 selectizeInput(
-                  "filterColumn",
-                  "Select Column to Filter",
-                  choices = NULL
+                  "facetVarRow",
+                  "Facet By (Rows)",
+                  choices = c("None", "outc_cod", "AE_Category", "drug_category", "sex"),
+                  selected = "None"
                 ),
                 selectizeInput(
-                  "filterValues",
-                  "Select Values to keep",
-                  choices = NULL,
-                  multiple = TRUE
+                  "facetVarCol",
+                  "Facet By (Columns)",
+                  choices = c("None", "outc_cod", "AE_Category", "drug_category", "sex"),
+                  selected = "None"
+                ),
+                # Subset options
+                radioButtons(
+                  "onsetSubsetData",
+                  "Subset Data?",
+                  choices = c("No", "Yes"),
+                  selected = "No"
+                ),
+                conditionalPanel(
+                  condition = "input.onsetSubsetData == 'Yes'",
+                  selectizeInput(
+                    "onsetFilterColumn",
+                    "Select Column to Filter",
+                    choices = NULL
+                  ),
+                  selectizeInput(
+                    "onsetFilterValues",
+                    "Select Values to keep",
+                    choices = NULL,
+                    multiple = TRUE
+                  )
                 )
               )
             ),
-            # Onset plot options
-            conditionalPanel(
-              condition = "input.plotType == 'Onset'",
-              selectizeInput(
-                "facetVarRow",
-                "Facet By (Rows)",
-                choices = c("None", "outc_cod", "AE_Category", "drug_category", "sex"),
-                selected = "None"
-              ),
-              selectizeInput(
-                "facetVarCol",
-                "Facet By (Columns)",
-                choices = c("None", "outc_cod", "AE_Category", "drug_category", "sex"),
-                selected = "None"
-              )
-            ),
-            # Sankey plot options
-            conditionalPanel(
-              condition = "input.plotType == 'Sankey'",
-              selectizeInput(
-                "sankeyColumns",
-                "Select Columns for Sankey Plot",
-                choices = c("outc_cod", "AE_Category", "drug_category", "sex"),
-                multiple = TRUE
-              )
-            ),
-            # Volcano plot options
-            conditionalPanel(
-              condition = "input.plotType == 'Volcano'",
-              selectizeInput(
-                "volcanoTarget",
-                "Select Target Column",
-                choices = c("drug_category", "cancer_type"),
-                selected = "drug_category"
-              )
-            ),
-            # Chord plot options
-            conditionalPanel(
-              condition = "input.plotType == 'Chord'",
-              selectizeInput(
-                "chordColumn",
-                "Select Column for Chord Diagram",
-                choices = c("AECategory"),
-                selected = "AECategory"
+            column(
+              10,
+              div(
+                class = "main-card shadow-sm rounded p-4 bg-white",
+                uiOutput("onset_plot_container"),
               )
             )
           )
         ),
-        column(
-          10,
-          div(
-            class = "main-card shadow-sm rounded p-4 bg-white",
-            uiOutput("plot_container"),
-            conditionalPanel(
-              condition = "input.plotType == 'Onset'",
+        # --- Sankey Tab ---
+        tabPanel("Sankey",
+          fluidRow(
+            column(
+              2,
               div(
-                style = "text-align: right; margin-top: 10px;",
-                tags$i(
-                  id = "infoIcon",
-                  class = "fa fa-info-circle",
-                  style = "cursor: pointer; font-size: 16px;"
+                class = "sidebar-card shadow-sm rounded p-3 bg-white",
+                # Plot options
+                selectizeInput(
+                  "sankeyColumns",
+                  "Select Columns for Sankey Plot",
+                  choices = c("outc_cod", "AE_Category", "drug_category", "sex"),
+                  multiple = TRUE
+                ),
+                # Subset options
+                radioButtons(
+                  "sankeySubsetData",
+                  "Subset Data?",
+                  choices = c("No", "Yes"),
+                  selected = "No"
+                ),
+                conditionalPanel(
+                  condition = "input.sankeySubsetData == 'Yes'",
+                  selectizeInput(
+                    "sankeyFilterColumn",
+                    "Select Column to Filter",
+                    choices = NULL
+                  ),
+                  selectizeInput(
+                    "sankeyFilterValues",
+                    "Select Values to keep",
+                    choices = NULL,
+                    multiple = TRUE
+                  )
                 )
-              ),
-              bsTooltip(
-                id = "infoIcon",
-                title = "For the onset plot, values greater than 52 weeks are grouped into '>52'."
+              )
+            ),
+            column(
+              10,
+              div(
+                class = "main-card shadow-sm rounded p-4 bg-white",
+                uiOutput("sankey_plot_container")
+              )
+            )
+          )
+        ),
+        # --- Volcano Tab ---
+        tabPanel("Volcano",
+          fluidRow(
+            column(
+              2,
+              div(
+                class = "sidebar-card shadow-sm rounded p-3 bg-white",
+                # Plot options
+                selectizeInput(
+                  "volcanoTarget",
+                  "Select Target Column",
+                  choices = c("drug_category", "cancer_type"),
+                  selected = "drug_category"
+                )
+              )
+            ),
+            column(
+              10,
+              div(
+                class = "main-card shadow-sm rounded p-4 bg-white",
+                uiOutput("volcano_plot_container")
+              )
+            )
+          )
+        ),
+        # --- Chord Tab ---
+        tabPanel("Chord",
+          fluidRow(
+            column(
+              2,
+              div(
+                class = "sidebar-card shadow-sm rounded p-3 bg-white",
+                # Plot options
+                selectizeInput(
+                  "chordColumn",
+                  "Select Column for Chord Diagram",
+                  choices = c("AECategory"),
+                  selected = "AECategory"
+                )
+              )
+            ),
+            column(
+              10,
+              div(
+                class = "main-card shadow-sm rounded p-4 bg-white",
+                uiOutput("chord_plot_container")
               )
             )
           )
