@@ -187,7 +187,7 @@ ui <- navbarPage(
                 selectizeInput(
                   "chordColumn",
                   "Select Column for Chord Diagram",
-                  choices = c("AECategory"),
+                  choices = c("AECategory", "Drug Category", "Cancer Type"),
                   selected = "AECategory"
                 )
               )

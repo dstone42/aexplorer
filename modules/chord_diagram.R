@@ -2,7 +2,7 @@ library(networkD3)
 library(data.table)
 
 renderChordPlot <- function(data, source_col, target_col, value_col, group_colors = NULL) {
-
+  
   wrap_label <- function(label, width = 25) {
     # Insert line breaks at spaces, not in the middle of words
     paste(strwrap(label, width = width), collapse = "<br>")
@@ -26,10 +26,11 @@ renderChordPlot <- function(data, source_col, target_col, value_col, group_color
       group_color_vec <- unname(group_colors[clean_labels])
     } else if (all(labels %in% color_names)) {
       group_color_vec <- unname(group_colors[labels])
-    } else {
-      # fallback: repeat a default color
-      group_color_vec <- rep("#D3D3D3", length(wrapped_labels))
     }
+  } else {
+    # Default color scale if no group colors provided
+    group_color_vec <- RColorBrewer::brewer.pal(n = nrow(data), name = "Set3")
+    
   }
 
   w <- chordNetwork(

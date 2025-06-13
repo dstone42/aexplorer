@@ -13,12 +13,18 @@ source("modules/volcano_plot.R")
 source("modules/chord_diagram.R")
 
 # ---- CACHE DATA HERE ----
+# Main table
 cached_data <- fread("data/data.csv", sep = "$")
+# Volcano plot data
 drug_category_stats <- fread("data/drug_category_stats.csv")
 cancer_type_stats <- fread("data/cancer_type_stats.csv")
-# chord_table <- makeFreqTable(cached_data, "AE_Category_Expanded")  # Create frequency table for Chord plot
+# Chord diagram data
 AE_Category_freq_table <- fread("data/AE_Category_freq_table.csv")
 AE_Category_freq_table <- formatChordTable(AE_Category_freq_table)  # Format the frequency table
+cancer_type_freq_table <- fread("data/cancer_type_freq_table.csv")
+cancer_type_freq_table <- formatChordTable(cancer_type_freq_table)  # Format the frequency table
+drug_category_freq_table <- fread("data/drug_category_freq_table.csv")
+drug_category_freq_table <- formatChordTable(drug_category_freq_table)  # Format the frequency table
 # -------------------------
 
 # Define the server logic
@@ -204,6 +210,10 @@ server <- function(input, output, session) {
       req(input$chordColumn)
       if (input$chordColumn == "AECategory") {
         chord_data(AE_Category_freq_table)  # Use the precomputed frequency table for AE Category
+      } else if (input$chordColumn == "Drug Category") {
+        chord_data(drug_category_freq_table)  # Use the precomputed frequency table for Drug Category
+      } else if (input$chordColumn == "Cancer Type") {
+        chord_data(cancer_type_freq_table)  # Use the precomputed frequency table for Cancer Type
       } else {
         chord_data(NULL)  # Handle other cases or set to NULL if no data available
       }
@@ -222,6 +232,10 @@ server <- function(input, output, session) {
     palette <- NULL
     if (input$chordColumn == "AECategory") {
       palette <- ae_category_palette
+    } else if (input$chordColumn == "Drug Category") {
+      palette <- drug_category_palette
+    } else {
+      palette <- NULL
     }
     # You may need to preprocess filteredData() to get a data.table with source, target, value columns
     renderChordPlot(
