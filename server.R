@@ -117,6 +117,14 @@ server <- function(input, output, session) {
     renderOnsetPlot(onsetFilteredData(), input, output, session)
   })
 
+  output$download_onset_plot <- downloadHandler(
+    filename = function() { "onset_plot.png" },
+    content = function(file) {
+      plot <- renderOnsetPlot(onsetFilteredData(), input, output, session)
+      ggsave(file, plot = plot, width = 10, height = onsetPlotHeight() / 100, dpi = 300)
+    }
+  )
+
   # --- Sankey Plot ---
 
   # Observe the sankeySubsetData input and update the sankeyFilterColumn choices accordingly
@@ -169,6 +177,26 @@ server <- function(input, output, session) {
     renderSankeyPlot(sankeyFilteredData(), input, output, session)
   })
 
+  output$download_sankey_plot_html <- downloadHandler(
+    filename = function() { "sankey_plot.html" },
+    content = function(file) {
+      sankey <- renderSankeyPlot(sankeyFilteredData(), input, output, session)
+      htmlwidgets::saveWidget(sankey, file)
+    }
+  )
+
+  output$download_sankey_plot_png <- downloadHandler(
+    filename = function() { "sankey_plot.png" },
+    content = function(file) {
+      sankey <- renderSankeyPlot(sankeyFilteredData(), input, output, session)
+      # Save to a temporary HTML file first
+      temp_html <- tempfile(fileext = ".html")
+      htmlwidgets::saveWidget(sankey, temp_html, selfcontained = TRUE)
+      # Use webshot2 to capture as PNG
+      webshot2::webshot(temp_html, file = file, vwidth = 1200, vheight = 900)
+    }
+  )
+
   # --- Volcano Plot ---
 
   output$volcano_plot_container <- renderUI({
@@ -198,6 +226,21 @@ server <- function(input, output, session) {
         )
       )
   })
+
+  output$download_volcano_plot <- downloadHandler(
+    filename = function() { "volcano_plot.png" },
+    content = function(file) {
+      # Dynamically select the data source for the Volcano plot based on input$volcanoTarget
+      req(input$volcanoTarget)
+      if (input$volcanoTarget == "drug_category") {
+        data_source <- drug_category_stats_data()
+      } else if (input$volcanoTarget == "cancer_type") {
+        data_source <- cancer_type_stats_data()
+      }
+      plot <- volcanoPlotObject(data_source, target_col = input$volcanoTarget, plot_title = "Volcano Plot")
+      ggsave(file, plot = plot, width = 18, height = 10, dpi = 300)
+    }
+  )
 
   # --- Chord Diagram ---
 
@@ -254,4 +297,50 @@ server <- function(input, output, session) {
       session$sendCustomMessage("patchChordLabels", list())
     }
   })
+
+  output$download_chord_plot_html <- downloadHandler(
+    filename = function() { "chord_plot.html" },
+    content = function(file) {
+      palette <- NULL
+      if (input$chordColumn == "AECategory") {
+        palette <- ae_category_palette
+      } else if (input$chordColumn == "Drug Category") {
+        palette <- drug_category_palette
+      } else {
+        palette <- NULL
+      }
+      chord <- renderChordPlot(
+        data = chord_data(),
+        source_col = "source",
+        target_col = "target",
+        value_col = "value",
+        group_colors = palette
+      )
+      htmlwidgets::saveWidget(chord, file)
+    }
+  )
+
+  output$download_chord_plot_png <- downloadHandler(
+    filename = function() { "chord_plot.png" },
+    content = function(file) {
+      palette <- NULL
+      if (input$chordColumn == "AECategory") {
+        palette <- ae_category_palette
+      } else if (input$chordColumn == "Drug Category") {
+        palette <- drug_category_palette
+      } else {
+        palette <- NULL
+      }
+      chord <- renderChordPlot(
+        data = chord_data(),
+        source_col = "source",
+        target_col = "target",
+        value_col = "value",
+        group_colors = palette
+      )
+      temp_html <- tempfile(fileext = ".html")
+      htmlwidgets::saveWidget(chord, temp_html, selfcontained = TRUE)
+      webshot2::webshot(temp_html, file = file, vwidth = 1200, vheight = 1100)
+    }
+  )
 }

@@ -101,6 +101,7 @@ ui <- navbarPage(
               div(
                 class = "main-card shadow-sm rounded p-4 bg-white",
                 uiOutput("onset_plot_container"),
+                downloadButton("download_onset_plot", "Download Plot")
               )
             )
           )
@@ -146,7 +147,9 @@ ui <- navbarPage(
               10,
               div(
                 class = "main-card shadow-sm rounded p-4 bg-white",
-                uiOutput("sankey_plot_container")
+                uiOutput("sankey_plot_container"),
+                downloadButton("download_sankey_plot_html", "Download Plot as HTML"),
+                downloadButton("download_sankey_plot_png", "Download Plot as PNG")
               )
             )
           )
@@ -171,7 +174,8 @@ ui <- navbarPage(
               10,
               div(
                 class = "main-card shadow-sm rounded p-4 bg-white",
-                uiOutput("volcano_plot_container")
+                uiOutput("volcano_plot_container"),
+                downloadButton("download_volcano_plot", "Download Plot")
               )
             )
           )
@@ -196,7 +200,9 @@ ui <- navbarPage(
               10,
               div(
                 class = "main-card shadow-sm rounded p-4 bg-white",
-                uiOutput("chord_plot_container")
+                uiOutput("chord_plot_container"),
+                downloadButton("download_chord_plot_html", "Download Plot as HTML"),
+                downloadButton("download_chord_plot_png", "Download Plot as PNG")
               )
             )
           )
