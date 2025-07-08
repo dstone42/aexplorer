@@ -151,9 +151,6 @@ server <- function(input, output, session) {
     }
   })
 
-  # The selected order I chose in the UI section was never preserved when the figure rendered, so I am setting the selected here
-  updateSelectizeInput(session, "sankeyColumns", selected = c("drug_category", "outc_cod"))  # Default selected columns for Sankey plot
-
   output$sankey_plot_container <- renderUI({
     div(
       style = "overflow-y: auto; max-height: 1200px;",
@@ -161,8 +158,15 @@ server <- function(input, output, session) {
     )
   })
 
-  output$sankey_plot_with_caption <- renderUI({
-    tagList(
+  output$sankey_plot_container <- renderUI({
+    selected <- input$sankey_selected
+    if (is.null(selected) || length(selected) < 2) {
+      tags$div(
+        class = "alert alert-warning",
+        "Please select at least two columns for the Sankey plot."
+      )
+    } else {
+      tagList(
         sankeyNetworkOutput("sankeyPlot"),  # Use sankeyNetworkOutput for Sankey plot
         # Caption
         tags$p(
@@ -170,10 +174,13 @@ server <- function(input, output, session) {
           "Proportions of adverse event cases across selected columns."
         )
       )
+    }
   })
 
   output$sankeyPlot <- renderSankeyNetwork({
     req(sankeyFilteredData())
+    req(input$sankey_selected)
+    req(length(input$sankey_selected) >= 2)  # Ensure at least two columns are selected
     renderSankeyPlot(sankeyFilteredData(), input, output, session)
   })
 

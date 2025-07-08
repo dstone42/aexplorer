@@ -3,6 +3,7 @@ library(shinycssloaders)
 library(shinyBS)  # Add this library for tooltips
 library(shinyjs)
 library(bslib)
+library(sortable)
 
 # Use a modern Bootstrap theme
 custom_theme <- bs_theme(
@@ -114,11 +115,23 @@ ui <- navbarPage(
               div(
                 class = "sidebar-card shadow-sm rounded p-3 bg-white",
                 # Plot options
-                selectizeInput(
-                  "sankeyColumns",
-                  "Select Columns for Sankey Plot",
-                  choices = c("outc_cod", "AE_Category", "drug_category", "sex"),
-                  multiple = TRUE
+                tags$label("Select & Order Columns for Sankey Plot"),
+                bucket_list(
+                  header = NULL,
+                  group_name = "sankey_columns",
+                  orientation = "vertical",
+                  add_rank_list(
+                    text = "Available Columns",
+                    input_id = "sankey_available",
+                    labels = c("AE_Category", "sex", "drug_category", "outc_cod"), # not selected by default
+                    options = sortable_options(multiselect = FALSE)
+                  ),
+                  add_rank_list(
+                    text = "Selected Columns (Drag to reorder)",
+                    input_id = "sankey_selected",
+                    labels = character(0), # default selection/order
+                    options = sortable_options(multiselect = FALSE)
+                  )
                 ),
                 # Subset options
                 radioButtons(
