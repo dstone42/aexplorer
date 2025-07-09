@@ -25,33 +25,14 @@ ui <- navbarPage(
   id = "main_navbar",
   header = tags$head(
     # tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"),
-    tags$link(rel = "stylesheet", href = "custom.css")  # Add your custom CSS here
+    tags$link(rel = "stylesheet", href = "custom.css"),  # Add your custom CSS here
+    tags$script(src = "https://d3js.org/d3.v6.min.js"),
+    tags$script(src = "patchChordLabels.js"),  # Custom JS for chord label wrapping
+    tags$script(src = "patchChordTooltips.js")  # Custom JS for chord
   ),
   tabPanel(
     title = "Data Exploration",
     fluidPage(
-      # Custom script to make chord labels wrap correctly
-      tags$script(HTML("
-        Shiny.addCustomMessageHandler('patchChordLabels', function(message) {
-          setTimeout(function() {
-            // Select all text elements in the chord diagram
-            d3.selectAll('#chordPlot text').each(function() {
-              var text = d3.select(this).text();
-              if (text.indexOf('<br>') !== -1) {
-                var lines = text.split('<br>');
-                d3.select(this).text(null);
-                for (var i = 0; i < lines.length; i++) {
-                  d3.select(this)
-                    .append('tspan')
-                    .attr('x', 0)
-                    .attr('dy', i === 0 ? 0 : '1.2em')
-                    .text(lines[i]);
-                }
-              }
-            });
-          }, 300); // Wait for rendering
-        });
-      ")),
       tabsetPanel(
         id = "exploreTab",
         # --- Onset Tab ---

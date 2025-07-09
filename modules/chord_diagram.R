@@ -29,10 +29,16 @@ renderChordPlot <- function(data, source_col, target_col, value_col, group_color
     }
   } else {
     # Default color scale if no group colors provided
-    group_color_vec <- RColorBrewer::brewer.pal(n = nrow(data), name = "Set3")
-    
+    max_colors <- 12
+    if (nrow(data) <= max_colors) {
+      group_color_vec <- RColorBrewer::brewer.pal(n = nrow(data), name = "Set3")
+    } else {
+      # Interpolate more colors if needed
+      base_colors <- RColorBrewer::brewer.pal(max_colors, "Set3")
+      group_color_vec <- colorRampPalette(base_colors)(nrow(data))
+    }
   }
-
+  
   w <- chordNetwork(
     Data = data,
     width = 900,

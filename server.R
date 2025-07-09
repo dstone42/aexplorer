@@ -158,7 +158,7 @@ server <- function(input, output, session) {
     )
   })
 
-  output$sankey_plot_container <- renderUI({
+  output$sankey_plot_with_caption <- renderUI({
     selected <- input$sankey_selected
     if (is.null(selected) || length(selected) < 2) {
       tags$div(
@@ -297,11 +297,17 @@ server <- function(input, output, session) {
     )
   })
 
-  # Observe when Chord plot is shown and trigger JS patch
-  observeEvent(input$plotType, {
-    if (input$plotType == "Chord") {
+  # Observe when Chord plot is shown and when a new column is selected and trigger JS patch
+  observeEvent(input$chordColumn, {
+    # Delay to ensure plot is rendered
+    session$sendCustomMessage("patchChordLabels", list())
+    session$sendCustomMessage("patchChordTooltips", list())
+  })
+  observeEvent(input$exploreTab, {
+    if (input$exploreTab == "Chord") {
       # Delay to ensure plot is rendered
       session$sendCustomMessage("patchChordLabels", list())
+      session$sendCustomMessage("patchChordTooltips", list())
     }
   })
 
