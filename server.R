@@ -27,6 +27,20 @@ drug_category_freq_table <- fread("data/drug_category_freq_table.csv")
 drug_category_freq_table <- formatChordTable(drug_category_freq_table)  # Format the frequency table
 # -------------------------
 
+column_labels <- c(
+  "Outcome" = "outc_cod",
+  "AE Category" = "AE_Category",
+  "Sex" = "sex",
+  "Drug Category" = "drug_category",
+  "Cancer Type" = "cancerType",
+  "Other Drugs" = "other_drug_name",
+  "Cancer Drugs" = "cancer_drug_name",
+  "Drug Category (Detailed)" = "drug_category_expanded",
+  "Quarter" = "quarter",
+  "AE" = "AE",
+  "AE Category (Detailed)" = "AE_Category_Expanded"
+)
+
 # Define the server logic
 server <- function(input, output, session) {
 
@@ -56,7 +70,7 @@ server <- function(input, output, session) {
   observe({
     choices <- names(data())  # Get column names for the onsetFilterColumn dropdown
     # Remove primaryid, event_dt, and time_to_onset from choices
-    choices <- choices[!choices %in% c("primaryid", "event_dt", "time_to_onset")]
+    choices <- column_labels
     updateSelectInput(session, "onsetFilterColumn", choices = choices)  # Populate onsetFilterColumn dropdown
     
   })
@@ -131,9 +145,8 @@ server <- function(input, output, session) {
   observe({
     choices <- names(data())  # Get column names for the sankeyFilterColumn dropdown
     # Remove primaryid, event_dt, and time_to_onset from choices
-    choices <- choices[!choices %in% c("primaryid", "event_dt", "time_to_onset")]
+    choices <- column_labels
     updateSelectInput(session, "sankeyFilterColumn", choices = choices)  # Populate sankeyFilterColumn dropdown
-    
   })
 
   # Observe the sankeyFilterColumn input and update the sankeyFilterValues choices accordingly
@@ -258,7 +271,7 @@ server <- function(input, output, session) {
   output$chord_plot_with_caption <- renderUI({
     # Dynamically select the data source for the Chord plot based on input$chordColumn
       req(input$chordColumn)
-      if (input$chordColumn == "AECategory") {
+      if (input$chordColumn == "AE Category") {
         chord_data(AE_Category_freq_table)  # Use the precomputed frequency table for AE Category
       } else if (input$chordColumn == "Drug Category") {
         chord_data(drug_category_freq_table)  # Use the precomputed frequency table for Drug Category
@@ -280,7 +293,7 @@ server <- function(input, output, session) {
   output$chordPlot <- renderchordNetwork({
     req(chord_data())
     palette <- NULL
-    if (input$chordColumn == "AECategory") {
+    if (input$chordColumn == "AE Category") {
       palette <- ae_category_palette
     } else if (input$chordColumn == "Drug Category") {
       palette <- drug_category_palette
@@ -315,7 +328,7 @@ server <- function(input, output, session) {
     filename = function() { "chord_plot.html" },
     content = function(file) {
       palette <- NULL
-      if (input$chordColumn == "AECategory") {
+      if (input$chordColumn == "AE Category") {
         palette <- ae_category_palette
       } else if (input$chordColumn == "Drug Category") {
         palette <- drug_category_palette
@@ -337,7 +350,7 @@ server <- function(input, output, session) {
     filename = function() { "chord_plot.png" },
     content = function(file) {
       palette <- NULL
-      if (input$chordColumn == "AECategory") {
+      if (input$chordColumn == "AE Category") {
         palette <- ae_category_palette
       } else if (input$chordColumn == "Drug Category") {
         palette <- drug_category_palette

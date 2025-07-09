@@ -8,7 +8,15 @@ Shiny.addCustomMessageHandler('patchChordTooltips', function(message) {
 
     // Attach handlers to each pie-slice, using index to get label
     d3.selectAll('#chordPlot g.pie-slice').each(function(d, i) {
-        var label = text[i].textContent;
+        var labelNode = text[i];
+        // If labelNode has tspans, join their text with a space
+        var tspans = labelNode.querySelectorAll('tspan');
+        var label;
+        if (tspans.length > 0) {
+            label = Array.from(tspans).map(t => t.textContent).join(' ');
+        } else {
+            label = labelNode.textContent;
+        }
         var value = d && d.value ? d.value : (d && d.endAngle && d.startAngle ? (d.endAngle - d.startAngle) : '');
         function formatNumber(x) {
         return x && !isNaN(x) ? x.toLocaleString() : x;

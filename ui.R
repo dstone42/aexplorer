@@ -15,6 +15,17 @@ custom_theme <- bs_theme(
   secondary = "#18BC9C"
 )
 
+column_labels <- c(
+  "Outcome" = "outc_cod",
+  "AE Category" = "AE_Category",
+  "Sex" = "sex",
+  "Drug Category" = "drug_category",
+  "Cancer Type" = "cancer_type"
+)
+
+# Create another list with the names and values of column_labels switched
+column_labels_switched <- setNames(names(column_labels), column_labels)
+
 # Define the UI
 ui <- navbarPage(
   title = div(
@@ -46,13 +57,13 @@ ui <- navbarPage(
                 selectizeInput(
                   "facetVarRow",
                   "Facet By (Rows)",
-                  choices = c("None", "outc_cod", "AE_Category", "drug_category", "sex"),
+                  choices = c("None" = "None", column_labels[c("Outcome", "AE Category", "Drug Category", "Sex")]),
                   selected = "None"
                 ),
                 selectizeInput(
                   "facetVarCol",
                   "Facet By (Columns)",
-                  choices = c("None", "outc_cod", "AE_Category", "drug_category", "sex"),
+                  choices = c("None" = "None", column_labels[c("Outcome", "AE Category", "Drug Category", "Sex")]),
                   selected = "None"
                 ),
                 # Subset options
@@ -104,7 +115,7 @@ ui <- navbarPage(
                   add_rank_list(
                     text = "Available Columns",
                     input_id = "sankey_available",
-                    labels = c("AE_Category", "sex", "drug_category", "outc_cod"), # not selected by default
+                    labels = column_labels_switched[c("AE_Category", "sex", "drug_category", "outc_cod")], # not selected by default
                     options = sortable_options(multiselect = FALSE)
                   ),
                   add_rank_list(
@@ -159,8 +170,8 @@ ui <- navbarPage(
                 selectizeInput(
                   "volcanoTarget",
                   "Select Target Column",
-                  choices = c("drug_category", "cancer_type"),
-                  selected = "drug_category"
+                  choices = column_labels[c("Drug Category", "Cancer Type")],
+                  selected = "Drug Category"
                 )
               )
             ),
@@ -185,8 +196,8 @@ ui <- navbarPage(
                 selectizeInput(
                   "chordColumn",
                   "Select Column for Chord Diagram",
-                  choices = c("AECategory", "Drug Category", "Cancer Type"),
-                  selected = "AECategory"
+                  choices = c("AE Category", "Drug Category", "Cancer Type"),
+                  selected = "AE Category"
                 )
               )
             ),
