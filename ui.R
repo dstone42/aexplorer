@@ -29,8 +29,22 @@ column_labels_switched <- setNames(names(column_labels), column_labels)
 # Define the UI
 ui <- navbarPage(
   title = div(
-    # tags$span(class = "fa fa-dna", style = "margin-right: 10px; color: #18BC9C;"),
-    "Cancer Treatment Adverse Event Explorer"
+    style = "display: flex; align-items: center; width: 100vw; padding-right: 32px; position: relative;",
+    span(
+      style = "flex: 1; z-index: 2;",
+      "Cancer Treatment Adverse Event Explorer"
+    ),
+    tags$img(
+      src = "tanLabLogo.png",
+      height = "100px",
+      style = "
+        position: absolute;
+        right: 30px;
+        top: 5px;
+        margin-right: 0;
+        z-index: 1;
+        "
+    )
   ),
   theme = custom_theme,
   id = "main_navbar",
