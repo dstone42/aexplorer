@@ -63,3 +63,11 @@ body {
 .container-fluid {
       flex-direction: column !important; /* Using !important can help ensure it overrides, but use with caution */
     }
+
+/* Force long selectize dropdown items to wrap or break */
+.selectize-dropdown-content .option,
+.selectize-input .item {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  max-width: 250px; /* Adjust as needed */
+}
