@@ -50,7 +50,8 @@ ui <- navbarPage(
   id = "main_navbar",
   header = tags$head(
     # tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"),
-    tags$link(rel = "stylesheet", href = "custom.css"),  # Add your custom CSS here
+    tags$link(rel = "stylesheet", href = "custom.css"),
+    tags$link(rel = "icon", type = "image/png", href = "tanLabLogo.png"),
     tags$script(src = "https://d3js.org/d3.v6.min.js"),
     tags$script(src = "patchChordLabels.js"),  # Custom JS for chord label wrapping
     tags$script(src = "patchChordTooltips.js")  # Custom JS for chord
