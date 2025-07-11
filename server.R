@@ -5,12 +5,15 @@ library(data.table)
 library(ggplot2)
 library(jsonlite)
 library(systemfonts)
+library(plotly)
+library(orca)
 
 # Source visualization modules
 source("modules/onset_plot.R")
 source("modules/sankey_plot.R")
 source("modules/volcano_plot.R")
 source("modules/chord_diagram.R")
+source("modules/overlap.R")
 
 # ---- CACHE DATA HERE ----
 # Main table
@@ -25,6 +28,8 @@ cancer_type_freq_table <- fread("data/cancer_type_freq_table.csv")
 cancer_type_freq_table <- formatChordTable(cancer_type_freq_table)  # Format the frequency table
 drug_category_freq_table <- fread("data/drug_category_freq_table.csv")
 drug_category_freq_table <- formatChordTable(drug_category_freq_table)  # Format the frequency table
+# Overlap coefficient data
+AE_category_overlap <- as.matrix(read.csv("data/AE_Category_overlap_coefficient.csv", row.names = 1, check.names = FALSE))
 # -------------------------
 
 column_labels <- c(
@@ -51,6 +56,7 @@ server <- function(input, output, session) {
   drug_category_stats_data <- reactiveVal(drug_category_stats)
   cancer_type_stats_data <- reactiveVal(cancer_type_stats)
   chord_data <- reactiveVal(NULL)
+  overlap_data <- reactiveVal(NULL)
 
   # Read palettes
   ae_category_palette <- fromJSON("www/palettes/ae_categories.json")
@@ -369,4 +375,16 @@ server <- function(input, output, session) {
       webshot2::webshot(temp_html, file = file, vwidth = 1200, vheight = 1100)
     }
   )
+
+  # --- Overlap Coefficient Plot ---
+
+  observe({
+    if (input$overlapTarget == "AE Category") {
+      overlap_data(AE_category_overlap)  # Use the preloaded AE category overlap data
+    } else {
+      overlap_data(NULL)  # Handle case where no valid target is selected
+    }
+  })
+
+  overlapHeatmapServer("overlap1", overlap_data)
 }

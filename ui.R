@@ -5,6 +5,8 @@ library(shinyjs)
 library(bslib)
 library(sortable)
 
+source("modules/overlap.R", local = TRUE)
+
 # Use a modern Bootstrap theme
 custom_theme <- bs_theme(
   version = 5,
@@ -223,6 +225,31 @@ ui <- navbarPage(
                 uiOutput("chord_plot_container"),
                 downloadButton("download_chord_plot_html", "Download Plot as HTML"),
                 downloadButton("download_chord_plot_png", "Download Plot as PNG")
+              )
+            )
+          )
+        ),
+        # --- Overlap Tab ---
+        tabPanel("Overlap",
+          fluidRow(
+            column(
+              2,
+              div(
+                class = "sidebar-card shadow-sm rounded p-3 bg-white",
+                # Plot options
+                selectizeInput(
+                  "overlapTarget",
+                  "Select Target Column",
+                  choices = c("AE Category"),
+                  selected = "AE Category"
+                )
+              )
+            ),
+            column(
+              10,
+              div(
+                class = "main-card shadow-sm rounded p-4 bg-white",
+                overlapHeatmapUI("overlap1")
               )
             )
           )
