@@ -1,4 +1,6 @@
 
+library(plotly)
+
 overlapHeatmapUI <- function(id) {
     ns <- NS(id)
     tagList(
@@ -11,11 +13,19 @@ overlapHeatmapUI <- function(id) {
     )
 }
 
-overlapHeatmapServer <- function(id, overlap_data) {
+overlapHeatmapServer <- function(id, overlap_data, cluster) {
     moduleServer(id, function(input, output, session) {
         output$overlap_heatmap <- renderPlotly({
             req(overlap_data())
             mat <- overlap_data()
+            # Cluster if requested
+            if (isTruthy(cluster())) {
+                # Compute distance and hierarchical clustering
+                dist_mat <- as.dist(1 - mat)
+                hc <- hclust(dist_mat)
+                ord <- hc$order
+                mat <- mat[ord, ord]
+            }
             # Mask upper triangle
             mat[upper.tri(mat, diag = TRUE)] <- NA
             plot_ly(

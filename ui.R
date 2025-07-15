@@ -242,6 +242,11 @@ ui <- navbarPage(
                   "Select Target Column",
                   choices = c("AE Category"),
                   selected = "AE Category"
+                ),
+                checkboxInput(
+                  "overlapCluster",
+                  "Cluster Heatmap",
+                  value = FALSE
                 )
               )
             ),

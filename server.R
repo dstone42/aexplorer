@@ -240,9 +240,11 @@ server <- function(input, output, session) {
       } else if (input$volcanoTarget == "cancer_type") {
         data_source <- cancer_type_stats_data
       }
+
+      volcanoPlotServer("volcano1", data = data_source, target_col = input$volcanoTarget, plot_title = "Volcano Plot")
       
       tagList(
-        volcanoPlotServer("volcano1", data = data_source, target_col = input$volcanoTarget, plot_title = "Volcano Plot"),  # Use volcanoPlotServer for Volcano plot
+        girafeOutput("volcano1-volcanoPlot"),
         # Caption
         tags$p(
           style = "font-style: italic; font-size: 12px; color: #555; margin-top: 8px;",
@@ -386,5 +388,5 @@ server <- function(input, output, session) {
     }
   })
 
-  overlapHeatmapServer("overlap1", overlap_data)
+  overlapHeatmapServer("overlap1", overlap_data, reactive(input$overlapCluster))
 }

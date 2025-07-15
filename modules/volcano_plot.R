@@ -1,12 +1,13 @@
 library(ggplot2)
 library(ggrepel)
+library(ggiraph)
 
 #' Volcano Plot Module UI
 #' @param id Namespace id
 volcanoPlotUI <- function(id) {
   ns <- NS(id)
   tagList(
-    plotOutput(ns("volcanoPlot"), height = "1000px")
+    girafeOutput(ns("volcanoPlot"), height = "1000px")
   )
 }
 
@@ -17,7 +18,7 @@ volcanoPlotUI <- function(id) {
 #' @param plot_title Title for the plot (string)
 volcanoPlotServer <- function(id, data, target_col, plot_title = "Volcano Plot") {
   moduleServer(id, function(input, output, session) {
-    output$volcanoPlot <- renderPlot({
+    output$volcanoPlot <- renderGirafe({
       df <- data()
       req(df)
       # Ensure numeric
@@ -41,19 +42,28 @@ volcanoPlotServer <- function(id, data, target_col, plot_title = "Volcano Plot")
       # Size logic
       # max_significant_size <- max(df[df$colorColumn != "Insignificant"]$a)
       # Plot
-      ggplot(df, aes(
+
+      df$label_text <- paste0(df[[target_col]], " & ", df$AE)
+
+      # Add a text column for tooltips
+      df$tooltip <- paste0(
+        df$label_text, "<br>",
+        "log2(ROR): ", round(df$`log2(ROR)`, 2), "<br>",
+        "-log10(p): ", round(df$`-log10(adjusted p-value)`, 2), "<br>",
+        "Cases: ", df$`Number of Cases`
+      )
+
+      p <- ggplot(df, aes(
         x = `log2(ROR)`,
         y = `-log10(adjusted p-value)`,
         color = colorColumn,
-        size = `Number of Cases`,
-        label = ifelse(colorColumn != "Insignificant", paste0(df[[target_col]], " &\n", df$AE), "")
+        size = `Number of Cases`
       )) +
-        geom_point(alpha = 0.5) +
+        geom_point_interactive(aes(tooltip = tooltip), alpha = 0.5) +
         scale_color_manual(values = mycolors) +
         scale_size_continuous(range = c(1, 9), breaks = seq(from = 50, to = max(df$`Number of Cases`), by = as.integer(max(df$`Number of Cases`) / 6))) +
         geom_vline(xintercept = c(-1, 1), col = "pink", linetype = "dashed") +
         geom_hline(yintercept = pvalueThreshold, col = "pink", linetype = "dashed") +
-        geom_text_repel(size = 5, show.legend = FALSE) +
         theme_minimal() +
         labs(color = "Risk") +
         theme(
@@ -62,7 +72,12 @@ volcanoPlotServer <- function(id, data, target_col, plot_title = "Volcano Plot")
           legend.title = element_text(size = 15),
           axis.text = element_text(size = 10)
         )
-    }, height = 800)
+
+      girafe(ggobj = p, width_svg = 10, height_svg = 6, options = list(
+        opts_toolbar(saveaspng = FALSE)
+      ))
+
+    })
   })
 }
 
