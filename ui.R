@@ -196,7 +196,7 @@ ui <- navbarPage(
               10,
               div(
                 class = "main-card shadow-sm rounded p-4 bg-white",
-                uiOutput("volcano_plot_container"),
+                volcanoPlotUI("volcano_plot_container"),
                 downloadButton("download_volcano_plot", "Download Plot")
               )
             )

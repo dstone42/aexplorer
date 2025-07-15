@@ -56,6 +56,7 @@ server <- function(input, output, session) {
   drug_category_stats_data <- reactiveVal(drug_category_stats)
   cancer_type_stats_data <- reactiveVal(cancer_type_stats)
   chord_data <- reactiveVal(NULL)
+  volcano_data <- reactiveVal(NULL)
   overlap_data <- reactiveVal(NULL)
 
   # Read palettes
@@ -225,35 +226,15 @@ server <- function(input, output, session) {
 
   # --- Volcano Plot ---
 
-  output$volcano_plot_container <- renderUI({
-    div(
-      style = "overflow-y: auto; max-height: 1200px;",
-      withSpinner(uiOutput("volcano_plot_with_caption"))
-    )
+  observe({
+    if (input$volcanoTarget == "drug_category") {
+      volcano_data(drug_category_stats_data)
+    } else if (input$volcanoTarget == "cancer_type") {
+      volcano_data(cancer_type_stats_data)
+    }
   })
 
-  output$volcano_plot_with_caption <- renderUI({
-    # Dynamically select the data source for the Volcano plot based on input$volcanoTarget
-      req(input$volcanoTarget)
-      if (input$volcanoTarget == "drug_category") {
-        data_source <- drug_category_stats_data
-      } else if (input$volcanoTarget == "cancer_type") {
-        data_source <- cancer_type_stats_data
-      }
-
-      volcanoPlotServer("volcano1", data = data_source, target_col = input$volcanoTarget, plot_title = "Volcano Plot")
-      
-      tagList(
-        girafeOutput("volcano1-volcanoPlot"),
-        # Caption
-        tags$p(
-          style = "font-style: italic; font-size: 12px; color: #555; margin-top: 8px;",
-          "Shows odds (ROR) of reporting an adverse event (AE) and its statistical significance (adjusted p-value) for selected column.
-          Points on the top right indicate increased risk for the AE in the context of the selected target.
-          Points on the top left indicate decreased risk for the AE in the context of the selected target."
-        )
-      )
-  })
+  volcanoPlotServer("volcano_plot_container", data = volcano_data(), target_col = reactive(input$volcanoTarget), plot_title = "Volcano Plot")
 
   output$download_volcano_plot <- downloadHandler(
     filename = function() { "volcano_plot.png" },

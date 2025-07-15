@@ -7,7 +7,14 @@ library(ggiraph)
 volcanoPlotUI <- function(id) {
   ns <- NS(id)
   tagList(
-    girafeOutput(ns("volcanoPlot"), height = "1000px")
+    withSpinner(girafeOutput(ns("volcanoPlot"))),
+    # Caption
+    tags$p(
+      style = "font-style: italic; font-size: 12px; color: #555; margin-top: 8px;",
+      "Shows odds (ROR) of reporting an adverse event (AE) and its statistical significance (adjusted p-value) for selected column.
+      Points on the top right indicate increased risk for the AE in the context of the selected target.
+      Points on the top left indicate decreased risk for the AE in the context of the selected target."
+    )
   )
 }
 
@@ -21,6 +28,7 @@ volcanoPlotServer <- function(id, data, target_col, plot_title = "Volcano Plot")
     output$volcanoPlot <- renderGirafe({
       df <- data()
       req(df)
+      print(df)
       # Ensure numeric
       df$ROR <- as.numeric(df$ROR)
       df$`adjusted p-value` <- as.numeric(df$`adjusted p-value`)
@@ -43,7 +51,7 @@ volcanoPlotServer <- function(id, data, target_col, plot_title = "Volcano Plot")
       # max_significant_size <- max(df[df$colorColumn != "Insignificant"]$a)
       # Plot
 
-      df$label_text <- paste0(df[[target_col]], " & ", df$AE)
+      df$label_text <- paste0(df[[target_col()]], " & ", df$AE)
 
       # Add a text column for tooltips
       df$tooltip <- paste0(
