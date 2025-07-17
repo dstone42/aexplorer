@@ -28,7 +28,6 @@ volcanoPlotServer <- function(id, data, target_col, plot_title = "Volcano Plot")
     output$volcanoPlot <- renderGirafe({
       df <- data()
       req(df)
-      print(df)
       # Ensure numeric
       df$ROR <- as.numeric(df$ROR)
       df$`adjusted p-value` <- as.numeric(df$`adjusted p-value`)

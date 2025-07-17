@@ -272,7 +272,8 @@ ui <- navbarPage(
                 Use the Visualizations tab to interact with the data."),
         tags$h6("Data Source"),
         tags$p("The data used in this dashboard is sourced from the FDA Adverse Event Reporting System (FAERS).
-                We have processed and cleaned the data to provide meaningful insights into cancer treatment related adverse events.")
+                We have processed and cleaned the data to provide meaningful insights into cancer treatment related adverse events."),
+        tags$a(href = "AExplorer_User_Manual.pdf", "Download User Manual", target = "_blank")
       )
     )
   )
