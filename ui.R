@@ -6,6 +6,7 @@ library(bslib)
 library(sortable)
 
 source("modules/overlap.R", local = TRUE)
+source("modules/volcano_plot.R", local = TRUE)
 
 # Use a modern Bootstrap theme
 custom_theme <- bs_theme(
@@ -63,6 +64,37 @@ ui <- navbarPage(
     fluidPage(
       tabsetPanel(
         id = "exploreTab",
+        # --- ROR Tab ---
+        tabPanel("ROR",
+          fluidRow(
+            column(
+              2,
+              div(
+                class = "sidebar-card shadow-sm rounded p-3 bg-white",
+                # Plot options
+                selectizeInput(
+                  "volcanoTarget",
+                  "Select Target Column",
+                  choices = column_labels[c("Drug Category", "Cancer Type")],
+                  selected = "Drug Category"
+                ),
+                radioButtons(
+                  "volcanoMeasure",
+                  "Disproportionality Measure",
+                  choices = c("ROR", "PRR"),
+                  selected = "ROR"
+                )
+              )
+            ),
+            column(
+              10,
+              div(
+                class = "main-card shadow-sm rounded p-4 bg-white",
+                volcanoPlotUI("volcano_plot_container")
+              )
+            )
+          )
+        ),
         # --- Onset Tab ---
         tabPanel("Onset",
           fluidRow(
@@ -84,14 +116,13 @@ ui <- navbarPage(
                   selected = "None"
                 ),
                 # Subset options
-                radioButtons(
+                checkboxInput(
                   "onsetSubsetData",
-                  "Subset Data?",
-                  choices = c("No", "Yes"),
-                  selected = "No"
+                  "Filter by Value",
+                  value = FALSE
                 ),
                 conditionalPanel(
-                  condition = "input.onsetSubsetData == 'Yes'",
+                  condition = "input.onsetSubsetData",
                   selectizeInput(
                     "onsetFilterColumn",
                     "Select Column to Filter",
@@ -102,6 +133,26 @@ ui <- navbarPage(
                     "Select Values to keep",
                     choices = NULL,
                     multiple = TRUE
+                  )
+                ),
+                checkboxInput("onsetUseCustomPalette", "Custom Colors", FALSE),
+                conditionalPanel(
+                  condition = "input.onsetUseCustomPalette",
+                  selectInput("onsetPaletteMode", "Mode", c("Preset Palette", "Manual Colors", "Upload JSON"), selected = "Preset Palette"),
+                  conditionalPanel(
+                    condition = "input.onsetPaletteMode == 'Preset Palette'",
+                    selectInput("onsetPresetFamily", "Palette Family", c("Brewer", "Viridis", "Okabe-Ito", "Tableau 10"), selected = "Brewer"),
+                    uiOutput("onsetPresetNameUI"),
+                    checkboxInput("onsetPaletteReverse", "Reverse", FALSE),
+                    numericInput("onsetPresetMax", "Max Colors (auto extend if needed)", 20, min = 2, max = 100, step = 1)
+                  ),
+                  conditionalPanel(
+                    condition = "input.onsetPaletteMode == 'Manual Colors'",
+                    uiOutput("onset_manual_colors")
+                  ),
+                  conditionalPanel(
+                    condition = "input.onsetPaletteMode == 'Upload JSON'",
+                    fileInput("onsetPaletteFile", "Upload JSON (named object or array)", accept = c(".json"))
                   )
                 )
               )
@@ -172,32 +223,6 @@ ui <- navbarPage(
                 uiOutput("sankey_plot_container"),
                 downloadButton("download_sankey_plot_html", "Download Plot as HTML"),
                 downloadButton("download_sankey_plot_png", "Download Plot as PNG")
-              )
-            )
-          )
-        ),
-        # --- Volcano Tab ---
-        tabPanel("Volcano",
-          fluidRow(
-            column(
-              2,
-              div(
-                class = "sidebar-card shadow-sm rounded p-3 bg-white",
-                # Plot options
-                selectizeInput(
-                  "volcanoTarget",
-                  "Select Target Column",
-                  choices = column_labels[c("Drug Category", "Cancer Type")],
-                  selected = "Drug Category"
-                )
-              )
-            ),
-            column(
-              10,
-              div(
-                class = "main-card shadow-sm rounded p-4 bg-white",
-                volcanoPlotUI("volcano_plot_container"),
-                downloadButton("download_volcano_plot", "Download Plot")
               )
             )
           )

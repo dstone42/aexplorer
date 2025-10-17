@@ -7,6 +7,13 @@ library(jsonlite)
 library(systemfonts)
 library(plotly)
 library(orca)
+library(later)   # <--- add this
+library(colourpicker)
+library(RColorBrewer)
+library(viridisLite)
+
+# Null-coalescing helper (was causing "%||%" not found)
+`%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
 
 # Source visualization modules
 source("modules/onset_plot.R")
@@ -90,7 +97,7 @@ server <- function(input, output, session) {
   # Filter data based on user input
   onsetFilteredData <- reactive({
     req(data())
-    if (input$onsetSubsetData == "Yes" && !is.null(input$onsetFilterColumn) && !is.null(input$onsetFilterValues)) {
+    if (isTRUE(input$onsetSubsetData) && !is.null(input$onsetFilterColumn) && !is.null(input$onsetFilterValues)) {
       data()[data()[[input$onsetFilterColumn]] %in% input$onsetFilterValues, ]
     } else {
       data()
@@ -133,15 +140,154 @@ server <- function(input, output, session) {
       )
   })
 
+  # --- Onset Plot custom palette helpers ---
+  onsetFacetCategories <- reactive({
+    req(onsetFilteredData())
+    # Prefer row facet; if absent use column facet; else NULL
+    if (!is.null(input$facetVarRow) && input$facetVarRow != "None") {
+      vals <- unique(na.omit(onsetFilteredData()[[input$facetVarRow]]))
+    } else if (!is.null(input$facetVarCol) && input$facetVarCol != "None") {
+      vals <- unique(na.omit(onsetFilteredData()[[input$facetVarCol]]))
+    } else {
+      return(NULL)
+    }
+    vals[order(vals)]
+  })
+
+  output$onsetPresetNameUI <- renderUI({
+    req(input$onsetUseCustomPalette, input$onsetPaletteMode == "Preset Palette")
+    if (input$onsetPresetFamily == "Brewer") {
+      pals <- rownames(RColorBrewer::brewer.pal.info)[RColorBrewer::brewer.pal.info$category %in% c("qual", "div")]
+      selectInput("onsetBrewerPalette", "Brewer Palette", choices = pals, selected = "Set3")
+    } else if (input$onsetPresetFamily == "Viridis") {
+      selectInput("onsetViridisOption", "Viridis Option", choices = c("viridis","magma","plasma","inferno","cividis","turbo","mako","rocket"), selected = "viridis")
+    } else {
+      NULL
+    }
+  })
+
+  output$onset_manual_colors <- renderUI({
+    req(input$onsetUseCustomPalette, input$onsetPaletteMode == "Manual Colors", input$facetVarRow != "None")
+    cats <- onsetFacetCategories()
+    req(cats)
+    base_cols <- suppressWarnings(grDevices::hcl.colors(length(cats), "Set3"))
+    lapply(seq_along(cats), function(i) {
+      colourInput(
+        inputId = paste0("onsetColor_", make.names(cats[i])),
+        label = cats[i],
+        value = base_cols[i],
+        allowTransparent = FALSE
+      )
+    })
+  })
+
+  onsetCustomPalette <- reactive({
+    if (!isTRUE(input$onsetUseCustomPalette)) return(NULL)
+    activeFacet <- if (!is.null(input$facetVarRow) && input$facetVarRow != "None") {
+      input$facetVarRow
+    } else if (!is.null(input$facetVarCol) && input$facetVarCol != "None") {
+      input$facetVarCol
+    } else NULL
+
+    cats <- onsetFacetCategories()
+    mode <- input$onsetPaletteMode
+    reverse <- isTRUE(input$onsetPaletteReverse)
+    maxN <- input$onsetPresetMax %||% 20
+
+    makeLength <- function(cols, want) {
+      if (length(cols) >= want) return(cols[seq_len(want)])
+      grDevices::colorRampPalette(cols)(want)
+    }
+
+    # Non-faceted
+    if (is.null(activeFacet) || is.null(cats)) {
+      singleCol <- NULL
+      if (mode == "Preset Palette") {
+        fam <- input$onsetPresetFamily
+        if (fam == "Brewer" && !is.null(input$onsetBrewerPalette)) {
+          info <- RColorBrewer::brewer.pal.info[input$onsetBrewerPalette, ]
+            n_use <- max(3, min(3, info$max))
+            base <- RColorBrewer::brewer.pal(n_use, input$onsetBrewerPalette)
+            singleCol <- base[1]
+        } else if (fam == "Viridis" && !is.null(input$onsetViridisOption)) {
+          singleCol <- viridisLite::viridis(1, option = input$onsetViridisOption)
+        } else if (fam == "Okabe-Ito") {
+          singleCol <- "#E69F00"
+        } else if (fam == "Tableau 10") {
+          singleCol <- "#4E79A7"
+        }
+        if (reverse && !is.null(singleCol)) singleCol <- rev(singleCol)
+      } else if (mode == "Manual Colors") {
+        singleCol <- grDevices::hcl.colors(1, "Set3")
+      } else if (mode == "Upload JSON") {
+        f <- input$onsetPaletteFile
+        if (!is.null(f)) {
+          js <- try(jsonlite::fromJSON(f$datapath), silent = TRUE)
+          if (!inherits(js, "try-error") && is.character(js) && length(js) >= 1) singleCol <- js[1]
+        }
+      }
+      if (is.null(singleCol)) singleCol <- "#888888"
+      return(setNames(singleCol, "single"))
+    }
+
+    # Faceted
+    cols <- NULL
+    if (mode == "Preset Palette") {
+      fam <- input$onsetPresetFamily
+      if (fam == "Brewer" && !is.null(input$onsetBrewerPalette)) {
+        info <- RColorBrewer::brewer.pal.info[input$onsetBrewerPalette, ]
+        n_base <- max(3, min(info$max, length(cats), maxN))
+        base <- RColorBrewer::brewer.pal(n_base, input$onsetBrewerPalette)
+        cols <- makeLength(base, length(cats))
+        if (reverse) cols <- rev(cols)
+      } else if (fam == "Viridis" && !is.null(input$onsetViridisOption)) {
+        cols <- viridisLite::viridis(length(cats), option = input$onsetViridisOption, direction = if (reverse) -1 else 1)
+      } else if (fam == "Okabe-Ito") {
+        base <- c("#E69F00","#56B4E9","#009E73","#F0E442","#0072B2","#D55E00","#CC79A7","#000000")
+        if (reverse) base <- rev(base)
+        cols <- makeLength(base, length(cats))
+      } else if (fam == "Tableau 10") {
+        base <- c("#4E79A7","#F28E2B","#E15759","#76B7B2","#59A14F","#EDC948","#B07AA1","#FF9DA7","#9C755F","#BAB0AC")
+        if (reverse) base <- rev(base)
+        cols <- makeLength(base, length(cats))
+      }
+    } else if (mode == "Manual Colors") {
+      cols <- vapply(cats, function(ct) {
+        val <- input[[paste0("onsetColor_", make.names(ct))]]
+        if (is.null(val) || !nzchar(val)) "#888888" else val
+      }, character(1))
+    } else if (mode == "Upload JSON") {
+      f <- input$onsetPaletteFile
+      if (is.null(f)) return(NULL)
+      js <- try(jsonlite::fromJSON(f$datapath), silent = TRUE)
+      if (inherits(js, "try-error")) return(NULL)
+      if (is.character(js) && is.null(names(js))) {
+        base <- if (reverse) rev(js) else js
+        cols <- makeLength(base, length(cats))
+      } else if (is.character(js) && !is.null(names(js))) {
+        cols <- js[cats]
+        if (reverse) cols <- rev(cols)
+        if (anyNA(cols)) {
+          miss <- which(is.na(cols))
+          cols[miss] <- grDevices::hcl.colors(length(miss), "Set3")
+        }
+      }
+    }
+    if (is.null(cols)) return(NULL)
+    names(cols) <- cats
+    cols
+  })
+
+  # --- existing onset plot render updated to pass custom palette ---
   output$onsetPlot <- renderPlot({
     req(onsetFilteredData())
-    renderOnsetPlot(onsetFilteredData(), input, output, session)
+    renderOnsetPlot(onsetFilteredData(), input, output, session, custom_palette = onsetCustomPalette())
   })
 
   output$download_onset_plot <- downloadHandler(
     filename = function() { "onset_plot.png" },
     content = function(file) {
-      plot <- renderOnsetPlot(onsetFilteredData(), input, output, session)
+      plot <- renderOnsetPlot(onsetFilteredData(), input, output, session, custom_palette = onsetCustomPalette())
       ggsave(file, plot = plot, width = 10, height = onsetPlotHeight() / 100, dpi = 300)
     }
   )
@@ -226,30 +372,15 @@ server <- function(input, output, session) {
 
   # --- Volcano Plot ---
 
-  observe({
-    if (input$volcanoTarget == "drug_category") {
-      volcano_data(drug_category_stats_data)
-    } else if (input$volcanoTarget == "cancer_type") {
-      volcano_data(cancer_type_stats_data)
-    }
+  volcano_data <- reactive({
+    switch(input$volcanoTarget,
+      "drug_category" = drug_category_stats_data(),
+      "cancer_type" = cancer_type_stats_data(),
+      NULL
+    )
   })
 
-  volcanoPlotServer("volcano_plot_container", data = volcano_data(), target_col = reactive(input$volcanoTarget), plot_title = "Volcano Plot")
-
-  output$download_volcano_plot <- downloadHandler(
-    filename = function() { "volcano_plot.png" },
-    content = function(file) {
-      # Dynamically select the data source for the Volcano plot based on input$volcanoTarget
-      req(input$volcanoTarget)
-      if (input$volcanoTarget == "drug_category") {
-        data_source <- drug_category_stats_data()
-      } else if (input$volcanoTarget == "cancer_type") {
-        data_source <- cancer_type_stats_data()
-      }
-      plot <- volcanoPlotObject(data_source, target_col = input$volcanoTarget, plot_title = "Volcano Plot")
-      ggsave(file, plot = plot, width = 18, height = 10, dpi = 300)
-    }
-  )
+  volcanoPlotServer("volcano_plot_container", data = volcano_data, target_col = reactive(input$volcanoTarget), measure = reactive(input$volcanoMeasure), plot_title = "Volcano Plot")
 
   # --- Chord Diagram ---
 
