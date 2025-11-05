@@ -7,7 +7,7 @@ library(jsonlite)
 library(systemfonts)
 library(plotly)
 library(orca)
-library(later)   # <--- add this
+library(later)
 library(colourpicker)
 library(RColorBrewer)
 library(viridisLite)
@@ -140,7 +140,7 @@ server <- function(input, output, session) {
       )
   })
 
-  # --- Onset Plot custom palette helpers ---
+  # Onset Plot custom palette helpers
   onsetFacetCategories <- reactive({
     req(onsetFilteredData())
     # Prefer row facet; if absent use column facet; else NULL
@@ -149,8 +149,9 @@ server <- function(input, output, session) {
     } else if (!is.null(input$facetVarCol) && input$facetVarCol != "None") {
       vals <- unique(na.omit(onsetFilteredData()[[input$facetVarCol]]))
     } else {
-      return(NULL)
+      vals <- c("All")
     }
+    vals <- vals[vals != ""]
     vals[order(vals)]
   })
 
@@ -167,8 +168,9 @@ server <- function(input, output, session) {
   })
 
   output$onset_manual_colors <- renderUI({
-    req(input$onsetUseCustomPalette, input$onsetPaletteMode == "Manual Colors", input$facetVarRow != "None")
+    req(input$onsetUseCustomPalette, input$onsetPaletteMode == "Manual Colors")
     cats <- onsetFacetCategories()
+    print(cats)
     req(cats)
     base_cols <- suppressWarnings(grDevices::hcl.colors(length(cats), "Set3"))
     lapply(seq_along(cats), function(i) {
@@ -218,16 +220,40 @@ server <- function(input, output, session) {
         }
         if (reverse && !is.null(singleCol)) singleCol <- rev(singleCol)
       } else if (mode == "Manual Colors") {
-        singleCol <- grDevices::hcl.colors(1, "Set3")
+        val <- input[["onsetColor_All"]]
+        singleCol <- if (is.null(val) || !nzchar(val)) grDevices::hcl.colors(1, "Set3") else val
       } else if (mode == "Upload JSON") {
         f <- input$onsetPaletteFile
         if (!is.null(f)) {
-          js <- try(jsonlite::fromJSON(f$datapath), silent = TRUE)
-          if (!inherits(js, "try-error") && is.character(js) && length(js) >= 1) singleCol <- js[1]
+          js_raw <- try(jsonlite::fromJSON(f$datapath), silent = TRUE)
+          if (inherits(js_raw, "try-error")) return(NULL)
+
+          # Normalize the parsed JSON into either:
+          # - named character vector (if object provided), or
+          # - unnamed character vector (if array provided)
+          if (is.list(js_raw) && !is.null(names(js_raw))) {
+            # JSON object -> named list; coerce values to character
+            js_vals <- vapply(js_raw, function(x) as.character(x[1]), character(1))
+            # Keep the names
+            names(js_vals) <- names(js_raw)
+            singleCol <- js_vals[cats]  # pick in cats order (may produce NA for missing)
+          } else if (is.atomic(js_raw) && !is.null(names(js_raw))) {
+            # named atomic vector (rare), coerce to character
+            js_vals <- as.character(js_raw)
+            singleCol <- js_vals[cats]
+          } else {
+            # treat as an array of colors
+            js_arr <- as.character(unlist(js_raw))
+            base <- if (reverse) rev(js_arr) else js_arr
+            singleCol <- makeLength(base, length(cats))
+          }
+
+          # If we got named values but some categories are missing, fill them below
+          # (handled by subsequent code)
         }
       }
       if (is.null(singleCol)) singleCol <- "#888888"
-      return(setNames(singleCol, "single"))
+      return(setNames(singleCol, "All"))
     }
 
     # Faceted
@@ -257,37 +283,133 @@ server <- function(input, output, session) {
         if (is.null(val) || !nzchar(val)) "#888888" else val
       }, character(1))
     } else if (mode == "Upload JSON") {
-      f <- input$onsetPaletteFile
-      if (is.null(f)) return(NULL)
-      js <- try(jsonlite::fromJSON(f$datapath), silent = TRUE)
-      if (inherits(js, "try-error")) return(NULL)
-      if (is.character(js) && is.null(names(js))) {
-        base <- if (reverse) rev(js) else js
-        cols <- makeLength(base, length(cats))
-      } else if (is.character(js) && !is.null(names(js))) {
-        cols <- js[cats]
-        if (reverse) cols <- rev(cols)
-        if (anyNA(cols)) {
-          miss <- which(is.na(cols))
-          cols[miss] <- grDevices::hcl.colors(length(miss), "Set3")
+        f <- input$onsetPaletteFile
+        if (!is.null(f)) {
+          js_raw <- try(jsonlite::fromJSON(f$datapath), silent = TRUE)
+          if (inherits(js_raw, "try-error")) return(NULL)
+
+          # Normalize the parsed JSON into either:
+          # - named character vector (if object provided), or
+          # - unnamed character vector (if array provided)
+          if (is.list(js_raw) && !is.null(names(js_raw))) {
+            # JSON object -> named list; coerce values to character
+            js_vals <- vapply(js_raw, function(x) as.character(x[1]), character(1))
+            # Keep the names
+            names(js_vals) <- names(js_raw)
+            cols <- js_vals[cats]  # pick in cats order (may produce NA for missing)
+          } else if (is.atomic(js_raw) && !is.null(names(js_raw))) {
+            # named atomic vector (rare), coerce to character
+            js_vals <- as.character(js_raw)
+            cols <- js_vals[cats]
+          } else {
+            # treat as an array of colors
+            js_arr <- as.character(unlist(js_raw))
+            base <- if (reverse) rev(js_arr) else js_arr
+            cols <- makeLength(base, length(cats))
+          }
+
+          # If we got named values but some categories are missing, fill them below
+          # (handled by subsequent code)
         }
       }
-    }
     if (is.null(cols)) return(NULL)
     names(cols) <- cats
     cols
   })
 
+  # Debounced palette reactive
+  debouncedOnsetCustomPalette <- debounce(onsetCustomPalette, 100)  # 100 ms delay
+
+  currentOnsetPalette <- reactiveVal(NULL)
+
+  # Normalize and store palette whenever the (debounced) palette changes OR when categories change.
+  # Use an observer (dependent on debouncedOnsetCustomPalette and onsetFacetCategories)
+  observe({
+    # Depend on both debounced palette and categories
+    pal_candidate <- debouncedOnsetCustomPalette()
+    cats <- onsetFacetCategories()
+
+    # helper: extend or truncate to desired length
+    makeLengthFallback <- function(cols, want) {
+      if (length(cols) >= want) return(cols[seq_len(want)])
+      grDevices::colorRampPalette(cols)(want)
+    }
+    
+    # Ensure cats is a character vector with at least one item
+    if (is.null(cats) || length(cats) == 0) cats <- "All"
+
+    # If the reactive returned a NULL/empty palette, create a fallback palette (Set3)
+    if (is.null(pal_candidate) || length(pal_candidate) == 0) {
+      pal_normalized <- setNames(
+        suppressWarnings(grDevices::hcl.colors(length(cats), "Set3")),
+        cats
+      )
+    } else {
+      # If pal_candidate has names, try to subset/reorder to current cats
+      if (!is.null(names(pal_candidate))) {
+        # Keep only those names that match cats (and in cats order); if names don't match any, fall back
+        common <- intersect(cats, names(pal_candidate))
+        if (length(common) > 0) {
+          pal_normalized <- pal_candidate[common]
+          # If there are cats missing from the named palette, append defaults for those
+          missing_cats <- setdiff(cats, names(pal_normalized))
+          if (length(missing_cats) > 0) {
+            pal_normalized <- c(
+              pal_normalized,
+              setNames(grDevices::hcl.colors(length(missing_cats), "Set3"), missing_cats)
+            )
+          }
+          # Reorder to cats
+          pal_normalized <- pal_normalized[cats]
+        } else {
+          # Named palette didn't match current categories -> treat as array below
+          pal_candidate <- unname(as.character(pal_candidate))
+          pal_normalized <- setNames(
+            makeLengthFallback(pal_candidate, length(cats)),
+            cats
+          )
+        }
+      } else {
+        # Unnamed palette (array): apply in order to cats. If shorter, extend by ramping.
+        pal_candidate <- unname(as.character(pal_candidate))
+        pal_normalized <- setNames(makeLengthFallback(pal_candidate, length(cats)), cats)
+      }
+    }
+
+    # Save normalized palette to reactiveVal
+    currentOnsetPalette(pal_normalized)
+  })
+
+  # Download (named key-value JSON)
+  output$download_onset_palette_json_kv <- downloadHandler(
+    filename = function() { "onset_palette_named.json" },
+    content = function(file) {
+      pal <- currentOnsetPalette()
+      jsonlite::write_json(as.list(pal), file, auto_unbox = TRUE, pretty = TRUE)
+    }
+  )
+
+  # Download (array JSON)
+  output$download_onset_palette_json_array <- downloadHandler(
+    filename = function() { "onset_palette_array.json" },
+    content = function(file) {
+      pal <- currentOnsetPalette()
+      jsonlite::write_json(as.list(unname(pal)), file, auto_unbox = TRUE, pretty = TRUE)
+    }
+  )
+
   # --- existing onset plot render updated to pass custom palette ---
   output$onsetPlot <- renderPlot({
     req(onsetFilteredData())
-    renderOnsetPlot(onsetFilteredData(), input, output, session, custom_palette = onsetCustomPalette())
+    pal <- debouncedOnsetCustomPalette()
+    # req(pal)  # Only render when palette is ready
+    renderOnsetPlot(onsetFilteredData(), input, output, session, custom_palette = pal)
   })
 
   output$download_onset_plot <- downloadHandler(
     filename = function() { "onset_plot.png" },
     content = function(file) {
-      plot <- renderOnsetPlot(onsetFilteredData(), input, output, session, custom_palette = onsetCustomPalette())
+      plot <- renderOnsetPlot(onsetFilteredData(), input, output, session, custom_palette = debouncedOnsetCustomPalette())
       ggsave(file, plot = plot, width = 10, height = onsetPlotHeight() / 100, dpi = 300)
     }
   )
@@ -382,123 +504,109 @@ server <- function(input, output, session) {
 
   volcanoPlotServer("volcano_plot_container", data = volcano_data, target_col = reactive(input$volcanoTarget), measure = reactive(input$volcanoMeasure), plot_title = "Volcano Plot")
 
-  # --- Chord Diagram ---
+# --- Chord & Overlap (Co-occurrence) ---
 
-  output$chord_plot_container <- renderUI({
-    withSpinner(uiOutput("chord_plot_with_caption"))  # No scrollable div
-  })
-
-  output$chord_plot_with_caption <- renderUI({
-    # Dynamically select the data source for the Chord plot based on input$chordColumn
-      req(input$chordColumn)
-      if (input$chordColumn == "AE Category") {
-        chord_data(AE_Category_freq_table)  # Use the precomputed frequency table for AE Category
-      } else if (input$chordColumn == "Drug Category") {
-        chord_data(drug_category_freq_table)  # Use the precomputed frequency table for Drug Category
-      } else if (input$chordColumn == "Cancer Type") {
-        chord_data(cancer_type_freq_table)  # Use the precomputed frequency table for Cancer Type
-      } else {
-        chord_data(NULL)  # Handle other cases or set to NULL if no data available
-      }
+  output$cooccurrence_plot_container <- renderUI({
+    if (input$cooccurPlotType == "chord") {
       tagList(
-        chordNetworkOutput("chordPlot", height = "1100px"),  # Use chordNetworkOutput for Chord plot
-        # Caption
+        withSpinner(chordNetworkOutput("chordPlot", height = "1100px")),
         tags$p(
           style = "font-style: italic; font-size: 12px; color: #555; margin-top: 8px;",
           "Shows the frequency of co-occurrence for selected column."
-        )
+        ),
+        downloadButton("download_chord_plot_html", "Download Chord as HTML"),
+        downloadButton("download_chord_plot_png", "Download Chord as PNG")
       )
+    } else {
+      # Overlap heatmap module UI (already provides caption)
+      overlapHeatmapUI("overlap1")
+    }
   })
 
+  # Chord plot data selection (unchanged)
   output$chordPlot <- renderchordNetwork({
+    req(input$cooccurPlotType == "chord")
     req(chord_data())
-    palette <- NULL
-    if (input$chordColumn == "AE Category") {
-      palette <- ae_category_palette
-    } else if (input$chordColumn == "Drug Category") {
-      palette <- drug_category_palette
-    } else {
-      palette <- NULL
-    }
-    # You may need to preprocess filteredData() to get a data.table with source, target, value columns
+    palette <- if (input$chordColumn == "AE Category") ae_category_palette else NULL
     renderChordPlot(
-      data = chord_data(),  # your processed data.table
+      data = chord_data(),
       source_col = "source",
       target_col = "target",
       value_col = "value",
-      group_colors = palette  # or another palette
+      group_colors = palette
     )
   })
 
-  # Observe when Chord plot is shown and when a new column is selected and trigger JS patch
-  observeEvent(input$chordColumn, {
-    # Delay to ensure plot is rendered
-    session$sendCustomMessage("patchChordLabels", list())
-    session$sendCustomMessage("patchChordTooltips", list())
+  # Chord download handlers (restored)
+  output$download_chord_plot_html <- downloadHandler(
+    filename = function() "chord_plot.html",
+    content = function(file) {
+      req(input$cooccurPlotType == "chord")
+      req(chord_data())
+      palette <- if (input$chordColumn == "AE Category") ae_category_palette else NULL
+      widget <- renderChordPlot(
+        data = chord_data(),
+        source_col = "source",
+        target_col = "target",
+        value_col = "value",
+        group_colors = palette
+      )
+      htmlwidgets::saveWidget(widget, file, selfcontained = TRUE)
+    }
+  )
+
+  output$download_chord_plot_png <- downloadHandler(
+    filename = function() "chord_plot.png",
+    content = function(file) {
+      req(input$cooccurPlotType == "chord")
+      req(chord_data())
+      palette <- if (input$chordColumn == "AE Category") ae_category_palette else NULL
+      widget <- renderChordPlot(
+        data = chord_data(),
+        source_col = "source",
+        target_col = "target",
+        value_col = "value",
+        group_colors = palette
+      )
+      tmp_html <- tempfile(fileext = ".html")
+      htmlwidgets::saveWidget(widget, tmp_html, selfcontained = TRUE)
+      # Adjust dimensions as desired
+      webshot2::webshot(tmp_html, file = file, vwidth = 1300, vheight = 1300)
+    }
+  )
+
+  # Keep existing chord_data assignment inside chord UI logic
+  observe({
+    if (input$cooccurPlotType == "chord" && input$chordColumn == "AE Category") {
+      chord_data(AE_Category_freq_table)
+    } else if (input$cooccurPlotType == "chord") {
+      chord_data(NULL)
+    }
   })
-  observeEvent(input$exploreTab, {
-    if (input$exploreTab == "Chord") {
-      # Delay to ensure plot is rendered
+
+  # Trigger JS patches only when chord visible
+  observeEvent(list(input$chordColumn, input$cooccurPlotType), {
+    if (input$cooccurPlotType == "chord") {
+      session$sendCustomMessage("patchChordLabels", list())
+      session$sendCustomMessage("patchChordTooltips", list())
+    }
+  })
+  observeEvent(list(input$exploreTab, input$cooccurPlotType), {
+    if (input$exploreTab == "Co-occurrence" && input$cooccurPlotType == "chord") {
       session$sendCustomMessage("patchChordLabels", list())
       session$sendCustomMessage("patchChordTooltips", list())
     }
   })
 
-  output$download_chord_plot_html <- downloadHandler(
-    filename = function() { "chord_plot.html" },
-    content = function(file) {
-      palette <- NULL
-      if (input$chordColumn == "AE Category") {
-        palette <- ae_category_palette
-      } else if (input$chordColumn == "Drug Category") {
-        palette <- drug_category_palette
-      } else {
-        palette <- NULL
-      }
-      chord <- renderChordPlot(
-        data = chord_data(),
-        source_col = "source",
-        target_col = "target",
-        value_col = "value",
-        group_colors = palette
-      )
-      htmlwidgets::saveWidget(chord, file)
-    }
-  )
-
-  output$download_chord_plot_png <- downloadHandler(
-    filename = function() { "chord_plot.png" },
-    content = function(file) {
-      palette <- NULL
-      if (input$chordColumn == "AE Category") {
-        palette <- ae_category_palette
-      } else if (input$chordColumn == "Drug Category") {
-        palette <- drug_category_palette
-      } else {
-        palette <- NULL
-      }
-      chord <- renderChordPlot(
-        data = chord_data(),
-        source_col = "source",
-        target_col = "target",
-        value_col = "value",
-        group_colors = palette
-      )
-      temp_html <- tempfile(fileext = ".html")
-      htmlwidgets::saveWidget(chord, temp_html, selfcontained = TRUE)
-      webshot2::webshot(temp_html, file = file, vwidth = 1200, vheight = 1100)
-    }
-  )
-
-  # --- Overlap Coefficient Plot ---
-
+  # Overlap data selection (reuses existing logic; input IDs unchanged)
   observe({
     if (input$overlapTarget == "AE Category") {
-      overlap_data(AE_category_overlap)  # Use the preloaded AE category overlap data
+      overlap_data(AE_category_overlap)
     } else {
-      overlap_data(NULL)  # Handle case where no valid target is selected
+      overlap_data(NULL)
     }
   })
 
+  # Overlap heatmap module server (unchanged)
   overlapHeatmapServer("overlap1", overlap_data, reactive(input$overlapCluster))
 }

@@ -152,7 +152,12 @@ ui <- navbarPage(
                   ),
                   conditionalPanel(
                     condition = "input.onsetPaletteMode == 'Upload JSON'",
-                    fileInput("onsetPaletteFile", "Upload JSON (named object or array)", accept = c(".json"))
+                    fileInput("onsetPaletteFile", "Upload JSON (named object or array)", accept = c(".json")),
+                    # Download examples of currently-used palette:
+                    div(style = "margin-top: 8px;", class = "d-flex flex-column gap-2",
+                      downloadButton("download_onset_palette_json_kv", "Download Palette (named JSON)"),
+                      downloadButton("download_onset_palette_json_array", "Download Palette (array JSON)")
+                    )
                   )
                 )
               )
@@ -227,51 +232,43 @@ ui <- navbarPage(
             )
           )
         ),
-        # --- Chord Tab ---
-        tabPanel("Chord",
+        # --- Co-occurrence Tab ---
+        tabPanel("Co-occurrence",
           fluidRow(
             column(
               2,
               div(
                 class = "sidebar-card shadow-sm rounded p-3 bg-white",
-                # Plot options
-                selectizeInput(
-                  "chordColumn",
-                  "Select Column for Chord Diagram",
-                  choices = c("AE Category", "Drug Category", "Cancer Type"),
-                  selected = "AE Category"
-                )
-              )
-            ),
-            column(
-              10,
-              div(
-                class = "main-card shadow-sm rounded p-4 bg-white",
-                uiOutput("chord_plot_container"),
-                downloadButton("download_chord_plot_html", "Download Plot as HTML"),
-                downloadButton("download_chord_plot_png", "Download Plot as PNG")
-              )
-            )
-          )
-        ),
-        # --- Overlap Tab ---
-        tabPanel("Overlap",
-          fluidRow(
-            column(
-              2,
-              div(
-                class = "sidebar-card shadow-sm rounded p-3 bg-white",
-                # Plot options
-                selectizeInput(
-                  "overlapTarget",
-                  "Select Target Column",
-                  choices = c("AE Category"),
-                  selected = "AE Category"
+                selectInput(
+                  "cooccurPlotType",
+                  "Plot Type",
+                  choices = c("Chord" = "chord", "Overlap Heatmap" = "heatmap"),
+                  selected = "chord"
                 ),
-                checkboxInput(
-                  "overlapCluster",
-                  "Cluster Heatmap",
-                  value = FALSE
+                conditionalPanel(
+                  condition = "input.cooccurPlotType == 'chord'",
+                  selectizeInput(
+                    "chordColumn",
+                    "Select Column for Chord Diagram",
+                    choices = c("AE Category"),
+                    selected = "AE Category"
+                  )
+                ),
+                conditionalPanel(
+                  condition = "input.cooccurPlotType == 'heatmap'",
+                  tagList(
+                    selectizeInput(
+                      "overlapTarget",
+                      "Select Target Column",
+                      choices = c("AE Category"),
+                      selected = "AE Category"
+                    ),
+                    checkboxInput(
+                      "overlapCluster",
+                      "Cluster Heatmap",
+                      value = FALSE
+                    )
+                  )
                 )
               )
             ),
@@ -279,7 +276,7 @@ ui <- navbarPage(
               10,
               div(
                 class = "main-card shadow-sm rounded p-4 bg-white",
-                overlapHeatmapUI("overlap1")
+                uiOutput("cooccurrence_plot_container")
               )
             )
           )
