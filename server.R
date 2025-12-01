@@ -83,7 +83,7 @@ server <- function(input, output, session) {
   # Observe the onsetSubsetData input and update the onsetFilterColumn choices accordingly
   observe({
     choices <- names(data())  # Get column names for the onsetFilterColumn dropdown
-    # Remove primaryid, event_dt, and time_to_onset from choices
+    # Remove caseid, event_dt, and time_to_onset from choices
     choices <- column_labels
     updateSelectInput(session, "onsetFilterColumn", choices = choices)  # Populate onsetFilterColumn dropdown
     
@@ -419,7 +419,7 @@ server <- function(input, output, session) {
   # Observe the sankeySubsetData input and update the sankeyFilterColumn choices accordingly
   observe({
     choices <- names(data())  # Get column names for the sankeyFilterColumn dropdown
-    # Remove primaryid, event_dt, and time_to_onset from choices
+    # Remove caseid, event_dt, and time_to_onset from choices
     choices <- column_labels
     updateSelectInput(session, "sankeyFilterColumn", choices = choices)  # Populate sankeyFilterColumn dropdown
   })
@@ -502,7 +502,51 @@ server <- function(input, output, session) {
     )
   })
 
-  volcanoPlotServer("volcano_plot_container", data = volcano_data, target_col = reactive(input$volcanoTarget), measure = reactive(input$volcanoMeasure), plot_title = "Volcano Plot")
+  # Custom colors for volcano plot
+  volcano_custom_colors <- reactive({
+    if (!isTRUE(input$volcanoUseCustomColors)) return(NULL)
+    if (input$volcanoColorMode == "Color Picker") {
+      return(c(
+        "Increased Risk" = input$volcanoColorIncreased %||% "#CC0000",
+        "Decreased Risk" = input$volcanoColorDecreased %||% "#0071c5",
+        "Insignificant" = input$volcanoColorInsignificant %||% "grey"
+      ))
+    } else if (input$volcanoColorMode == "Upload JSON") {
+      f <- input$volcanoColorFile
+      if (!is.null(f)) {
+        cols <- tryCatch(jsonlite::fromJSON(f$datapath), error = function(e) NULL)
+        # Ensure correct names
+        if (!is.null(cols) && all(c("Increased Risk", "Decreased Risk", "Insignificant") %in% names(cols))) {
+          return(cols)
+        }
+      }
+    }
+    NULL
+  })
+
+  output$download_volcano_colors_json <- downloadHandler(
+    filename = function() { "volcano_colors.json" },
+    content = function(file) {
+      cols <- volcano_custom_colors()
+      if (is.null(cols)) {
+        cols <- c(
+          "Increased Risk" = "#CC0000",
+          "Decreased Risk" = "#0071c5",
+          "Insignificant" = "grey"
+        )
+      }
+      jsonlite::write_json(as.list(cols), file, auto_unbox = TRUE, pretty = TRUE)
+    }
+  )
+
+  volcanoPlotServer(
+    "volcano_plot_container",
+    data = volcano_data,
+    target_col = reactive(input$volcanoTarget),
+    measure = reactive(input$volcanoMeasure),
+    plot_title = "Volcano Plot",
+    custom_colors = volcano_custom_colors
+  )
 
 # --- Chord & Overlap (Co-occurrence) ---
 

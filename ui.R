@@ -4,6 +4,7 @@ library(shinyBS)  # Add this library for tooltips
 library(shinyjs)
 library(bslib)
 library(sortable)
+library(colourpicker)
 
 source("modules/overlap.R", local = TRUE)
 source("modules/volcano_plot.R", local = TRUE)
@@ -83,6 +84,23 @@ ui <- navbarPage(
                   "Disproportionality Measure",
                   choices = c("ROR", "PRR"),
                   selected = "ROR"
+                ),
+                # Custom color options for volcano plot
+                checkboxInput("volcanoUseCustomColors", "Custom Colors", FALSE),
+                conditionalPanel(
+                  condition = "input.volcanoUseCustomColors",
+                  selectInput("volcanoColorMode", "Mode", c("Color Picker", "Upload JSON"), selected = "Color Picker"),
+                  conditionalPanel(
+                    condition = "input.volcanoColorMode == 'Color Picker'",
+                    colourInput("volcanoColorIncreased", "Increased Risk", value = "#CC0000"),
+                    colourInput("volcanoColorDecreased", "Decreased Risk", value = "#0071c5"),
+                    colourInput("volcanoColorInsignificant", "Insignificant", value = "grey")
+                  ),
+                  conditionalPanel(
+                    condition = "input.volcanoColorMode == 'Upload JSON'",
+                    fileInput("volcanoColorFile", "Upload JSON (named object)", accept = c(".json")),
+                    downloadButton("download_volcano_colors_json", "Download Current Colors (JSON)")
+                  )
                 )
               )
             ),

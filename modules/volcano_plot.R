@@ -40,8 +40,30 @@ volcanoPlotUI <- function(id) {
 #' @param data Reactive data frame with required columns
 #' @param target_col Name of the column for target/group (string)
 #' @param plot_title Title for the plot (string)
-volcanoPlotServer <- function(id, data, target_col, measure, plot_title = "Volcano Plot") {
+volcanoPlotServer <- function(id, data, target_col, measure, plot_title = "Volcano Plot", custom_colors = NULL) {
   moduleServer(id, function(input, output, session) {
+
+    # Helper to get custom colors
+    getVolcanoColors <- reactive({
+      # Default colors
+      default_colors <- c(
+        "Decreased Risk" = "#0071c5",
+        "Increased Risk" = "#CC0000",
+        "Insignificant" = "grey"
+      )
+      if (!is.null(custom_colors)) {
+        cols <- custom_colors()
+        # If uploaded JSON, ensure names match
+        if (!is.null(cols) && all(c("Decreased Risk", "Increased Risk", "Insignificant") %in% names(cols))) {
+          return(cols)
+        }
+        # If color pickers, build from input
+        if (!is.null(cols) && is.list(cols) && length(cols) == 3) {
+          return(cols)
+        }
+      }
+      default_colors
+    })
 
     processedVolcanoData <- reactive({
       df <- data()
@@ -69,7 +91,7 @@ volcanoPlotServer <- function(id, data, target_col, measure, plot_title = "Volca
       df <- proc$df
       measure <- proc$measure
       pvalueThreshold <- proc$p_thresh
-      mycolors <- c("Decreased Risk" = "#0071c5", "Increased Risk" = "#CC0000", "Insignificant" = "grey")
+      mycolors <- getVolcanoColors()
 
       df$label_text <- paste0(df[[target_col()]], " & ", df$AE)
 
@@ -252,7 +274,7 @@ volcanoPlotServer <- function(id, data, target_col, measure, plot_title = "Volca
         df <- proc$df
         measure <- proc$measure
         pvalueThreshold <- proc$p_thresh
-        mycolors <- c("Decreased Risk" = "#0071c5", "Increased Risk" = "#CC0000", "Insignificant" = "grey")
+        mycolors <- getVolcanoColors()
         p <- ggplot(df, aes(
           x = log2_value,
           y = `-log10(adjusted p-value)`,
